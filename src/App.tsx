@@ -28,17 +28,9 @@ export default function App() {
             <div className="flex items-center gap-6 text-sm">
               <Link 
                 className={`hover:text-blue-600 transition-colors font-medium ${
-                  location.pathname === '/' ? 'text-blue-600' : 'text-gray-600'
+                  location.pathname === '/' || location.pathname.startsWith('/batches') ? 'text-blue-600' : 'text-gray-600'
                 }`} 
                 to="/"
-              >
-                Dashboard
-              </Link>
-              <Link 
-                className={`hover:text-blue-600 transition-colors font-medium ${
-                  location.pathname.startsWith('/batches') ? 'text-blue-600' : 'text-gray-600'
-                }`} 
-                to="/batches"
               >
                 Manage Batch
               </Link>
