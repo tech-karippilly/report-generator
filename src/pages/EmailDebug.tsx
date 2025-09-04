@@ -19,7 +19,7 @@ export default function EmailDebug() {
         temp_password: 'TestPass123!',
         batch_code: 'TEST_BATCH',
         group_name: 'Test Group',
-        login_url: 'http://localhost:5175/login',
+        login_url: 'https://report-generator-4a753.web.app/login',
         from_name: 'Comm Reports Team',
         // Try different email field names
         email: 'suuportreportgenerator@gmail.com',

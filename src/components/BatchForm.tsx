@@ -170,7 +170,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
           try {
             // Create student accounts and prepare email data
             const emailCredentials: StudentLoginCredentials[] = [];
-            const loginUrl = `${window.location.origin}/login`;
+            const loginUrl = `https://report-generator-4a753.web.app/login`;
             
             for (const student of studentsToEmail) {
               const tempPassword = generateTempPassword();
