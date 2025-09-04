@@ -11,6 +11,7 @@ export default function App() {
             <div className="flex items-center gap-4 text-sm">
               <Link className={"hover:underline " + (location.pathname === '/' ? 'text-blue-600' : 'text-gray-700')} to="/">Batches</Link>
               <Link className={"hover:underline " + (location.pathname.startsWith('/report') ? 'text-blue-600' : 'text-gray-700')} to="/report">Session Report</Link>
+              <Link className={"hover:underline " + (location.pathname.startsWith('/daily') ? 'text-blue-600' : 'text-gray-700')} to="/daily">Daily Session</Link>
             </div>
           </div>
           <div className="text-xs text-gray-500">v0.1</div>

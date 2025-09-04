@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import BatchesPage from './pages/Batches.tsx'
 import SessionReportPage from './pages/SessionReport.tsx'
+import DailySessionPage from './pages/DailySession.tsx'
 
 const router = createBrowserRouter([
   {
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <BatchesPage /> },
       { path: 'report', element: <SessionReportPage /> },
+      { path: 'daily', element: <DailySessionPage /> },
     ],
   },
 ])
