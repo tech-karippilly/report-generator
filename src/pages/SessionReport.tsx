@@ -41,6 +41,12 @@ export default function SessionReportPage() {
   );
 
   useEffect(() => {
+    if (selectedBatch?.defaultMeetUrl && !meetUrl) {
+      setMeetUrl(selectedBatch.defaultMeetUrl);
+    }
+  }, [selectedBatch?.defaultMeetUrl]);
+
+  useEffect(() => {
     if (selectedBatch) {
       setPresentIds(selectedBatch.students.map((s) => s.id));
     } else {

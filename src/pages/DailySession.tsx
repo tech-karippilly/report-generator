@@ -39,6 +39,12 @@ export default function DailySessionPage() {
     [batches, selectedBatchId]
   );
 
+  useEffect(() => {
+    if (selectedBatch?.defaultMeetUrl && !meetUrl) {
+      setMeetUrl(selectedBatch.defaultMeetUrl);
+    }
+  }, [selectedBatch?.defaultMeetUrl]);
+
   const canGenerate = useMemo(
     () => Boolean(selectedBatch) && !!meetUrl && !!dateISO && !!startTime && !!endTime,
     [selectedBatch, meetUrl, dateISO, startTime, endTime]

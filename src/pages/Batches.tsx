@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, addDoc, onSnapshot, serverTimestamp, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, serverTimestamp, doc, deleteDoc, updateDoc, deleteField } from "firebase/firestore";
 import type { Batch, Person, Student } from "../types";
 import { db, isFirebaseConfigured } from "../firebase";
 import Button from "../components/Button";
@@ -11,6 +11,7 @@ function newId(): string {
 
 export default function BatchesPage() {
   const [code, setCode] = useState("");
+  const [defaultMeetUrl, setDefaultMeetUrl] = useState("");
   const [trainers, setTrainers] = useState<Person[]>([]);
   const [coordinators, setCoordinators] = useState<Person[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -26,6 +27,7 @@ export default function BatchesPage() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [alertMsg, setAlertMsg] = useState<string>("");
   const [alertTone, setAlertTone] = useState<"success"|"error"|"info"|"warning">("info");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !db) return;
@@ -68,21 +70,40 @@ export default function BatchesPage() {
       const cleanPeople = (arr: { id: string; name: string; phone?: string }[]) =>
         arr.map(p => clean({ id: p.id, name: p.name, phone: p.phone }));
 
-      await addDoc(collection(db, "batches"), clean({
-        code: code.trim(),
-        trainers: cleanPeople(trainers),
-        coordinators: cleanPeople(coordinators),
-        students: cleanPeople(students),
-        createdAt: now,
-        updatedAt: now,
-        ts: serverTimestamp(),
-      }));
+      if (editingId) {
+        const payload: any = {
+          code: code.trim(),
+          trainers: cleanPeople(trainers),
+          coordinators: cleanPeople(coordinators),
+          students: cleanPeople(students),
+          updatedAt: now,
+          ts: serverTimestamp(),
+        };
+        if (defaultMeetUrl.trim()) payload.defaultMeetUrl = defaultMeetUrl.trim();
+        else payload.defaultMeetUrl = deleteField();
+        await updateDoc(doc(db, "batches", editingId), payload);
+        setAlertTone("success");
+        setAlertMsg("Batch updated successfully.");
+      } else {
+        await addDoc(collection(db, "batches"), clean({
+          code: code.trim(),
+          defaultMeetUrl: defaultMeetUrl.trim() || undefined,
+          trainers: cleanPeople(trainers),
+          coordinators: cleanPeople(coordinators),
+          students: cleanPeople(students),
+          createdAt: now,
+          updatedAt: now,
+          ts: serverTimestamp(),
+        }));
+        setAlertTone("success");
+        setAlertMsg("Batch saved successfully.");
+      }
       setCode("");
       setTrainers([]);
       setCoordinators([]);
       setStudents([]);
-      setAlertTone("success");
-      setAlertMsg("Batch saved successfully.");
+      setDefaultMeetUrl("");
+      setEditingId(null);
     } catch (e) {
       setAlertTone("error");
       const code = (e as any)?.code ?? "error";
@@ -92,6 +113,25 @@ export default function BatchesPage() {
       setIsSaving(false);
       setTimeout(() => setAlertMsg(""), 3000);
     }
+  }
+
+  function beginEdit(b: Batch) {
+    setEditingId(b.id);
+    setCode(b.code);
+    setDefaultMeetUrl(b.defaultMeetUrl ?? "");
+    setTrainers(b.trainers);
+    setCoordinators(b.coordinators);
+    setStudents(b.students);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setCode("");
+    setDefaultMeetUrl("");
+    setTrainers([]);
+    setCoordinators([]);
+    setStudents([]);
   }
 
   function addTrainer() {
@@ -139,6 +179,9 @@ export default function BatchesPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Batches</h2>
+      {editingId && (
+        <Alert tone="info">Editing existing batch. <button className="underline" onClick={cancelEdit}>Cancel</button></Alert>
+      )}
       {alertMsg && <Alert tone={alertTone}>{alertMsg}</Alert>}
       <div className="grid gap-4">
         <label className="grid gap-1">
@@ -147,6 +190,16 @@ export default function BatchesPage() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="e.g., BCR69 Group 2"
+            className="w-full border rounded-md px-3 py-2"
+          />
+        </label>
+
+        <label className="grid gap-1">
+          <span className="text-sm text-gray-700">Default meet link (optional)</span>
+          <input
+            value={defaultMeetUrl}
+            onChange={(e) => setDefaultMeetUrl(e.target.value)}
+            placeholder="https://meet.google.com/..."
             className="w-full border rounded-md px-3 py-2"
           />
         </label>
@@ -208,7 +261,7 @@ export default function BatchesPage() {
           </ul>
         </div>
 
-        <Button variant="primary" disabled={!canSave || isSaving} onClick={handleSaveBatch}>{isSaving ? "Saving..." : "Save Batch"}</Button>
+        <Button variant="primary" disabled={!canSave || isSaving} onClick={handleSaveBatch}>{isSaving ? (editingId ? "Updating..." : "Saving...") : (editingId ? "Update Batch" : "Save Batch")}</Button>
       </div>
 
       <hr className="my-6" />
@@ -221,7 +274,10 @@ export default function BatchesPage() {
           {batches.map((b) => (
             <li key={b.id} className="flex items-center justify-between">
               <span><strong>{b.code}</strong> — {b.students.length} students</span>
-              <Button variant="danger" className="text-sm" onClick={() => removeBatch(b.id)}>Delete</Button>
+              <div className="flex items-center gap-2">
+                <Button className="text-sm" onClick={() => beginEdit(b)}>Edit</Button>
+                <Button variant="danger" className="text-sm" onClick={() => removeBatch(b.id)}>Delete</Button>
+              </div>
             </li>
           ))}
         </ul>

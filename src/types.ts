@@ -18,6 +18,7 @@ export interface Batch {
   trainers: Person[];
   coordinators: Person[];
   students: Student[];
+  defaultMeetUrl?: string;
   createdAt: number;
   updatedAt: number;
 }
