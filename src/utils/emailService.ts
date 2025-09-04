@@ -57,13 +57,18 @@ export const sendStudentLoginEmail = async (credentials: StudentLoginCredentials
       batch_code: credentials.batchCode,
       group_name: credentials.groupName || 'N/A',
       login_url: credentials.loginUrl,
-      from_name: 'Comm Reports Team'
+      from_name: 'Comm Reports Team',
+      // Try different email field names that EmailJS might expect
+      email: credentials.email,
+      recipient_email: credentials.email,
+      user_email: credentials.email
     };
 
     const response = await emailjs.send(
       EMAILJS_SERVICE_ID,
       EMAILJS_TEMPLATE_ID,
-      templateParams
+      templateParams,
+      EMAILJS_PUBLIC_KEY
     );
 
     console.log('Email sent successfully:', response);

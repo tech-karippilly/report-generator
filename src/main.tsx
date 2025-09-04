@@ -10,6 +10,7 @@ import Login from './pages/Login.tsx'
 import Register from './pages/Register.tsx'
 import ForgotPassword from './pages/ForgotPassword.tsx'
 import ResetPassword from './pages/ResetPassword.tsx'
+import EmailDebug from './pages/EmailDebug.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 const router = createBrowserRouter([
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { path: 'batches', element: <BatchesPage /> },
       { path: 'report', element: <SessionReportPage /> },
       { path: 'daily', element: <DailySessionPage /> },
+      { path: 'email-debug', element: <EmailDebug /> },
     ],
   },
   {
