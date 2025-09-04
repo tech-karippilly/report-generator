@@ -152,6 +152,27 @@ export default function SessionReportPage() {
     setCombinedSessionStudents(prev => prev.filter(student => student.id !== id));
   };
 
+  // WhatsApp helper functions
+  const openWhatsApp = (text: string) => {
+    const encodedText = encodeURIComponent(text);
+    const whatsappUrl = `https://web.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const copyAndOpenWhatsApp = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Small delay to ensure clipboard is updated
+      setTimeout(() => {
+        openWhatsApp(text);
+      }, 100);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Still try to open WhatsApp even if clipboard fails
+      openWhatsApp(text);
+    }
+  };
+
   async function handleSave() {
     if (!selectedBatch) return;
     
@@ -198,10 +219,13 @@ export default function SessionReportPage() {
       }));
       
       const text = buildWhatsappReportText(selectedBatch, { ...report, id: docRef.id });
-      await navigator.clipboard.writeText(text);
       
       setAlertTone("success");
-      setAlertMsg("Report saved and copied to clipboard. Paste into WhatsApp.");
+      setAlertMsg("Report saved! Opening WhatsApp...");
+      
+      // Copy to clipboard and open WhatsApp
+      await copyAndOpenWhatsApp(text);
+      
     } catch (error: any) {
       setAlertTone("error");
       setAlertMsg(`Failed to save report: ${error.message || "Please try again."}`);
@@ -653,7 +677,16 @@ export default function SessionReportPage() {
                   }}
                   className="text-sm"
                 >
-                  Copy & Close
+                  Copy Only
+                </Button>
+                <Button 
+                  onClick={() => {
+                    copyAndOpenWhatsApp(previewText);
+                    setShowPreviewModal(false);
+                  }}
+                  className="text-sm"
+                >
+                  Copy & Open WhatsApp
                 </Button>
                 <Button 
                   variant="danger" 

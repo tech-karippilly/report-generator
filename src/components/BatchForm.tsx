@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { collection, addDoc, updateDoc, doc, serverTimestamp, deleteField } from 'firebase/firestore';
 import type { Batch, Person, Student } from '../types';
 import { db, isFirebaseConfigured } from '../firebase';
+import { 
+  sendBulkStudentLoginEmails, 
+  generateTempPassword, 
+  createStudentAccount, 
+  isEmailServiceConfigured,
+  type StudentLoginCredentials 
+} from '../utils/emailService';
 import Button from './Button';
 import Alert from './Alert';
 
@@ -23,6 +30,9 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [coordinators, setCoordinators] = useState<Person[]>([]);
 
+  // Store original students for comparison when updating
+  const [originalStudents, setOriginalStudents] = useState<Student[]>([]);
+
   // Trainer form fields
   const [trainerName, setTrainerName] = useState('');
   const [trainerEmail, setTrainerEmail] = useState('');
@@ -41,6 +51,15 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [alertMsg, setAlertMsg] = useState('');
   const [alertTone, setAlertTone] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  
+  // Email functionality
+  const [sendEmails, setSendEmails] = useState(true);
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{
+    success: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
 
   useEffect(() => {
     if (batch) {
@@ -50,6 +69,8 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       setTrainers(batch.trainers || []);
       setStudents(batch.students || []);
       setCoordinators(batch.coordinators || []);
+      // Store original students for comparison
+      setOriginalStudents(batch.students || []);
     } else {
       // Reset form for new batch
       setBatchName('');
@@ -58,10 +79,22 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       setTrainers([]);
       setStudents([]);
       setCoordinators([]);
+      setOriginalStudents([]);
     }
   }, [batch]);
 
   const canSave = batchName.trim().length > 0 && trainers.length > 0 && students.length > 0;
+
+  // Function to detect newly added students
+  const getNewStudents = (): Student[] => {
+    if (!batch) return students; // For new batches, all students are new
+    
+    return students.filter(currentStudent => 
+      !originalStudents.some(originalStudent => 
+        originalStudent.email === currentStudent.email
+      )
+    );
+  };
 
   async function handleSave() {
     if (!canSave) return;
@@ -83,6 +116,9 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       const cleanPeople = (arr: { id: string; name: string; email?: string; phone?: string }[]) =>
         arr.map(p => clean({ id: p.id, name: p.name, email: p.email, phone: p.phone }));
 
+      let batchId: string;
+      let isNewBatch = false;
+
       if (batch) {
         // Update existing batch
         const payload: any = {
@@ -98,11 +134,12 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
         else payload.defaultMeetUrl = deleteField();
 
         await updateDoc(doc(db, "batches", batch.id), payload);
+        batchId = batch.id;
         setAlertTone("success");
         setAlertMsg("Batch updated successfully.");
       } else {
         // Create new batch
-        await addDoc(collection(db, "batches"), clean({
+        const docRef = await addDoc(collection(db, "batches"), clean({
           code: batchName.trim(),
           groupName: groupName.trim() || undefined,
           defaultMeetUrl: sessionLink.trim() || undefined,
@@ -113,8 +150,79 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
           updatedAt: now,
           ts: serverTimestamp(),
         }));
+        batchId = docRef.id;
+        isNewBatch = true;
         setAlertTone("success");
         setAlertMsg("Batch created successfully.");
+      }
+
+      // Send emails to students if enabled
+      const studentsToEmail = isNewBatch ? students : getNewStudents();
+      
+      if (sendEmails && studentsToEmail.length > 0) {
+        if (!isEmailServiceConfigured()) {
+          setAlertTone("warning");
+          setAlertMsg(`Batch saved but email service not configured. ${isNewBatch ? 'Students' : 'New students'} will need to be manually added to the system.`);
+        } else {
+          setIsSendingEmails(true);
+          setAlertMsg(`Sending login emails to ${studentsToEmail.length} ${isNewBatch ? 'students' : 'new students'}...`);
+          
+          try {
+            // Create student accounts and prepare email data
+            const emailCredentials: StudentLoginCredentials[] = [];
+            const loginUrl = `${window.location.origin}/login`;
+            
+            for (const student of studentsToEmail) {
+              const tempPassword = generateTempPassword();
+              
+              // Create student account
+              const accountResult = await createStudentAccount(student.email, tempPassword);
+              
+              if (accountResult.success) {
+                emailCredentials.push({
+                  name: student.name,
+                  email: student.email,
+                  tempPassword,
+                  batchCode: batchName.trim(),
+                  groupName: groupName.trim() || undefined,
+                  loginUrl
+                });
+              } else {
+                console.warn(`Failed to create account for ${student.email}:`, accountResult.error);
+              }
+            }
+
+            // Send emails
+            if (emailCredentials.length > 0) {
+              const emailResult = await sendBulkStudentLoginEmails(emailCredentials);
+              setEmailStatus(emailResult);
+              
+              if (emailResult.success > 0) {
+                setAlertTone("success");
+                if (isNewBatch) {
+                  setAlertMsg(`Batch saved! Login emails sent to ${emailResult.success} students.`);
+                } else {
+                  setAlertMsg(`Batch updated! Login emails sent to ${emailResult.success} new students.`);
+                }
+                if (emailResult.failed > 0) {
+                  setAlertMsg(prev => prev + ` ${emailResult.failed} emails failed to send.`);
+                }
+              } else {
+                setAlertTone("warning");
+                setAlertMsg(`Batch saved but no emails were sent successfully.`);
+              }
+            } else {
+              setAlertTone("warning");
+              setAlertMsg(`Batch saved but no student accounts were created successfully.`);
+            }
+          } catch (emailError) {
+            console.error('Email sending failed:', emailError);
+            setAlertTone("warning");
+            setAlertMsg(`Batch saved but failed to send login emails. ${isNewBatch ? 'Students' : 'New students'} will need to be manually added to the system.`);
+          } finally {
+            setIsSendingEmails(false);
+          }
+        }
       }
 
       setTimeout(() => {
@@ -205,6 +313,9 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       </div>
     );
   }
+
+  const newStudents = getNewStudents();
+  const hasNewStudents = newStudents.length > 0;
 
   return (
     <div className="space-y-6">
@@ -366,33 +477,60 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
 
           {students.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Added Students ({students.length})</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Added Students ({students.length})
+                {batch && hasNewStudents && (
+                  <span className="ml-2 text-green-600 font-medium">
+                    ({newStudents.length} new)
+                  </span>
+                )}
+              </h4>
               <div className="space-y-2">
-                {students.map((student, index) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                        {index + 1}
+                {students.map((student, index) => {
+                  const isNew = batch ? newStudents.some(ns => ns.email === student.email) : true;
+                  return (
+                    <div key={student.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                      isNew ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-medium ${
+                          isNew ? 'bg-green-500' : 'bg-gray-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <span className={`font-medium ${isNew ? 'text-green-900' : 'text-gray-900'}`}>
+                            {student.name}
+                          </span>
+                          <span className={`ml-2 ${isNew ? 'text-green-700' : 'text-gray-700'}`}>
+                            ({student.email})
+                          </span>
+                          {student.phone && (
+                            <span className={`ml-2 ${isNew ? 'text-green-600' : 'text-gray-600'}`}>
+                              - {student.phone}
+                            </span>
+                          )}
+                          {isNew && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              NEW
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant={coordinators.some(c => c.id === student.id) ? "primary" : "secondary"}
+                          className="text-xs px-2 py-1"
+                          onClick={() => setAsCoordinator(student.id)}
+                          disabled={coordinators.length >= 2 && !coordinators.some(c => c.id === student.id)}
+                        >
+                          {coordinators.some(c => c.id === student.id) ? 'Coordinator' : 'Set as Coordinator'}
+                        </Button>
                       </div>
-                      <div>
-                        <span className="font-medium text-green-900">{student.name}</span>
-                        <span className="text-green-700 ml-2">({student.email})</span>
-                        {student.phone && <span className="text-green-600 ml-2">- {student.phone}</span>}
-                      </div>
-                      <Button
-                        variant={coordinators.some(c => c.id === student.id) ? "primary" : "secondary"}
-                        className="text-xs px-2 py-1"
-                        onClick={() => setAsCoordinator(student.id)}
-                        disabled={coordinators.length >= 2 && !coordinators.some(c => c.id === student.id)}
-                      >
-                        {coordinators.some(c => c.id === student.id) ? 'Coordinator' : 'Set as Coordinator'}
+                      <Button variant="danger" className="text-sm px-3 py-1" onClick={() => removeStudent(student.id)}>
+                        Remove
                       </Button>
                     </div>
-                    <Button variant="danger" className="text-sm px-3 py-1" onClick={() => removeStudent(student.id)}>
-                      Remove
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -477,16 +615,92 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
           )}
         </div>
 
+        {/* Email Configuration Section */}
+        <div className="mt-8 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
+          <h3 className="text-lg font-semibold text-yellow-900 mb-4">
+            📧 Student Login Emails
+          </h3>
+          
+          <div className="flex items-center space-x-3 mb-4">
+            <input
+              type="checkbox"
+              id="sendEmails"
+              checked={sendEmails}
+              onChange={(e) => setSendEmails(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="sendEmails" className="text-sm font-medium text-yellow-800">
+              {batch ? 'Send login credentials to new students' : 'Send login credentials to students via email'}
+            </label>
+          </div>
+          
+          {sendEmails && (
+            <div className="text-sm text-yellow-700 space-y-2">
+              {batch ? (
+                <div>
+                  <p>When enabled, the system will send emails to newly added students:</p>
+                  {hasNewStudents ? (
+                    <div className="mt-2 p-3 bg-green-100 border border-green-300 rounded text-green-700">
+                      <strong>📧 {newStudents.length} new student{newStudents.length !== 1 ? 's' : ''} detected:</strong>
+                      <ul className="mt-1 list-disc list-inside">
+                        {newStudents.map((student, index) => (
+                          <li key={index}>{student.name} ({student.email})</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="mt-2 p-3 bg-gray-100 border border-gray-300 rounded text-gray-700">
+                      <strong>ℹ️ No new students detected.</strong> All current students were already in the batch.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p>When enabled, the system will:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Create student accounts with temporary passwords</li>
+                    <li>Send professional login emails with credentials</li>
+                    <li>Include batch information and login instructions</li>
+                    <li>Provide a direct link to the login page</li>
+                  </ul>
+                </div>
+              )}
+              
+              {!isEmailServiceConfigured() && (
+                <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-red-700">
+                  <strong>⚠️ Email service not configured.</strong> Please set up EmailJS environment variables to enable email sending.
+                </div>
+              )}
+            </div>
+          )}
+          
+          {emailStatus && (
+            <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded text-blue-700">
+              <strong>Email Status:</strong> {emailStatus.success} sent successfully, {emailStatus.failed} failed
+              {emailStatus.errors.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-medium">View errors</summary>
+                  <ul className="mt-1 text-xs space-y-1">
+                    {emailStatus.errors.map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="mt-8 flex justify-end space-x-4">
           <Button variant="danger" onClick={onCancel}>
             Cancel
           </Button>
           <Button
             variant="primary"
-            disabled={!canSave || isSaving}
+            disabled={!canSave || isSaving || isSendingEmails}
             onClick={handleSave}
           >
-            {isSaving ? 'Saving...' : (batch ? 'Update Batch' : 'Create Batch')}
+            {isSendingEmails ? 'Sending Emails...' : isSaving ? 'Saving...' : (batch ? 'Update Batch' : 'Create Batch')}
           </Button>
         </div>
       </div>
