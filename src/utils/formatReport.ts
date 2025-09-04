@@ -11,6 +11,15 @@ export function buildWhatsappReportText(batch: Batch, report: SessionReport): st
   const absentNames = batch.students
     .filter(s => report.absenteeStudentIds.includes(s.id))
     .map(s => s.name);
+  const anotherSessionNames = batch.students
+    .filter(s => report.anotherSessionStudentIds.includes(s.id))
+    .map(s => s.name);
+  
+  const otherBatchStudentNames = report.otherBatchStudents
+    .map(s => `${s.name} (${s.batchName})`);
+  
+  const combinedSessionStudentNames = report.combinedSessionStudents
+    .map(s => `${s.name} (${s.batchName} - ${s.groupName})`);
 
   const trainerNames = report.trainers.map(t => t.name).join(" , ");
 
@@ -40,8 +49,29 @@ export function buildWhatsappReportText(batch: Batch, report: SessionReport): st
   lines.push(`---------------------------`);
   lines.push(formatList(presentNames));
   lines.push("");
-  lines.push("");
-  lines.push(`Absentees (${absentNames.length})`);
+  
+  if (anotherSessionNames.length > 0) {
+    lines.push(`🔄 Attending Another Session (${anotherSessionNames.length})`);
+    lines.push(`----------------------------------------`);
+    lines.push(formatList(anotherSessionNames));
+    lines.push("");
+  }
+  
+  if (otherBatchStudentNames.length > 0) {
+    lines.push(`👥 Other Batch Students (${otherBatchStudentNames.length})`);
+    lines.push(`----------------------------------------`);
+    lines.push(formatList(otherBatchStudentNames));
+    lines.push("");
+  }
+  
+  if (combinedSessionStudentNames.length > 0) {
+    lines.push(`🤝 Combined Session Students (${combinedSessionStudentNames.length})`);
+    lines.push(`----------------------------------------`);
+    lines.push(formatList(combinedSessionStudentNames));
+    lines.push("");
+  }
+  
+  lines.push(`❌ Absentees (${absentNames.length})`);
   lines.push(`-------------------`);
   lines.push(formatList(absentNames));
   lines.push("");
