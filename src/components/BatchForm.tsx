@@ -8,7 +8,7 @@ import {
   createStudentAccount, 
   isEmailServiceConfigured,
   type StudentLoginCredentials 
-} from '../utils/emailService';
+} from '../utils/apiEmailService';
 import Button from './Button';
 import Alert from './Alert';
 
@@ -60,6 +60,12 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
     failed: number;
     errors: string[];
   } | null>(null);
+
+  // Student editing functionality
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editStudentName, setEditStudentName] = useState('');
+  const [editStudentEmail, setEditStudentEmail] = useState('');
+  const [editStudentPhone, setEditStudentPhone] = useState('');
 
   useEffect(() => {
     if (batch) {
@@ -116,7 +122,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       const cleanPeople = (arr: { id: string; name: string; email?: string; phone?: string }[]) =>
         arr.map(p => clean({ id: p.id, name: p.name, email: p.email, phone: p.phone }));
 
-      let batchId: string;
+      // let batchId: string;
       let isNewBatch = false;
 
       if (batch) {
@@ -134,12 +140,11 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
         else payload.defaultMeetUrl = deleteField();
 
         await updateDoc(doc(db, "batches", batch.id), payload);
-        batchId = batch.id;
         setAlertTone("success");
         setAlertMsg("Batch updated successfully.");
       } else {
         // Create new batch
-        const docRef = await addDoc(collection(db, "batches"), clean({
+        await addDoc(collection(db, "batches"), clean({
           code: batchName.trim(),
           groupName: groupName.trim() || undefined,
           defaultMeetUrl: sessionLink.trim() || undefined,
@@ -150,7 +155,6 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
           updatedAt: now,
           ts: serverTimestamp(),
         }));
-        batchId = docRef.id;
         isNewBatch = true;
         setAlertTone("success");
         setAlertMsg("Batch created successfully.");
@@ -304,6 +308,52 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       // Add to coordinators
       setCoordinators([...coordinators, { id: student.id, name: student.name, email: student.email, phone: student.phone }]);
     }
+  }
+
+  function startEditStudent(student: Student) {
+    setEditingStudentId(student.id);
+    setEditStudentName(student.name);
+    setEditStudentEmail(student.email);
+    setEditStudentPhone(student.phone || '');
+  }
+
+  function cancelEditStudent() {
+    setEditingStudentId(null);
+    setEditStudentName('');
+    setEditStudentEmail('');
+    setEditStudentPhone('');
+  }
+
+  function saveEditStudent() {
+    if (!editingStudentId || !editStudentName.trim() || !editStudentEmail.trim()) return;
+
+    const updatedStudents = students.map(student => 
+      student.id === editingStudentId 
+        ? {
+            ...student,
+            name: editStudentName.trim(),
+            email: editStudentEmail.trim(),
+            phone: editStudentPhone.trim() || undefined
+          }
+        : student
+    );
+
+    setStudents(updatedStudents);
+
+    // Update coordinator information if this student is a coordinator
+    const updatedCoordinators = coordinators.map(coordinator => 
+      coordinator.id === editingStudentId 
+        ? {
+            ...coordinator,
+            name: editStudentName.trim(),
+            email: editStudentEmail.trim(),
+            phone: editStudentPhone.trim() || undefined
+          }
+        : coordinator
+    );
+
+    setCoordinators(updatedCoordinators);
+    cancelEditStudent();
   }
 
   if (!isFirebaseConfigured) {
@@ -484,50 +534,119 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
                     ({newStudents.length} new)
                   </span>
                 )}
+                {editingStudentId && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    (editing...)
+                  </span>
+                )}
               </h4>
               <div className="space-y-2">
                 {students.map((student, index) => {
                   const isNew = batch ? newStudents.some(ns => ns.email === student.email) : true;
+                  const isEditing = editingStudentId === student.id;
+                  
                   return (
-                    <div key={student.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                    <div key={student.id} className={`p-3 rounded-lg border ${
                       isNew ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
                     }`}>
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-medium ${
-                          isNew ? 'bg-green-500' : 'bg-gray-500'
-                        }`}>
-                          {index + 1}
+                      {isEditing ? (
+                        // Edit mode
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Edit Student #{index + 1}</span>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="primary"
+                                className="text-xs px-3 py-1"
+                                onClick={saveEditStudent}
+                                disabled={!editStudentName.trim() || !editStudentEmail.trim()}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                className="text-xs px-3 py-1"
+                                onClick={cancelEditStudent}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              value={editStudentName}
+                              onChange={(e) => setEditStudentName(e.target.value)}
+                              placeholder="Student Name *"
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            />
+                            <input
+                              type="email"
+                              value={editStudentEmail}
+                              onChange={(e) => setEditStudentEmail(e.target.value)}
+                              placeholder="Email *"
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={editStudentPhone}
+                              onChange={(e) => setEditStudentPhone(e.target.value)}
+                              placeholder="Phone (optional)"
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <span className={`font-medium ${isNew ? 'text-green-900' : 'text-gray-900'}`}>
-                            {student.name}
-                          </span>
-                          <span className={`ml-2 ${isNew ? 'text-green-700' : 'text-gray-700'}`}>
-                            ({student.email})
-                          </span>
-                          {student.phone && (
-                            <span className={`ml-2 ${isNew ? 'text-green-600' : 'text-gray-600'}`}>
-                              - {student.phone}
-                            </span>
-                          )}
-                          {isNew && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                              NEW
-                            </span>
-                          )}
+                      ) : (
+                        // Display mode
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-medium ${
+                              isNew ? 'bg-green-500' : 'bg-gray-500'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <span className={`font-medium ${isNew ? 'text-green-900' : 'text-gray-900'}`}>
+                                {student.name}
+                              </span>
+                              <span className={`ml-2 ${isNew ? 'text-green-700' : 'text-gray-700'}`}>
+                                ({student.email})
+                              </span>
+                              {student.phone && (
+                                <span className={`ml-2 ${isNew ? 'text-green-600' : 'text-gray-600'}`}>
+                                  - {student.phone}
+                                </span>
+                              )}
+                              {isNew && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                  NEW
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant={coordinators.some(c => c.id === student.id) ? "primary" : "secondary"}
+                              className="text-xs px-2 py-1"
+                              onClick={() => setAsCoordinator(student.id)}
+                              disabled={coordinators.length >= 2 && !coordinators.some(c => c.id === student.id)}
+                            >
+                              {coordinators.some(c => c.id === student.id) ? 'Coordinator' : 'Set as Coordinator'}
+                            </Button>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="secondary"
+                              className="text-xs px-2 py-1"
+                              onClick={() => startEditStudent(student)}
+                              disabled={editingStudentId !== null && editingStudentId !== student.id}
+                            >
+                              Edit
+                            </Button>
+                            <Button variant="danger" className="text-xs px-2 py-1" onClick={() => removeStudent(student.id)}>
+                              Remove
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          variant={coordinators.some(c => c.id === student.id) ? "primary" : "secondary"}
-                          className="text-xs px-2 py-1"
-                          onClick={() => setAsCoordinator(student.id)}
-                          disabled={coordinators.length >= 2 && !coordinators.some(c => c.id === student.id)}
-                        >
-                          {coordinators.some(c => c.id === student.id) ? 'Coordinator' : 'Set as Coordinator'}
-                        </Button>
-                      </div>
-                      <Button variant="danger" className="text-sm px-3 py-1" onClick={() => removeStudent(student.id)}>
-                        Remove
-                      </Button>
+                      )}
                     </div>
                   );
                 })}
@@ -668,7 +787,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
               
               {!isEmailServiceConfigured() && (
                 <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-red-700">
-                  <strong>⚠️ Email service not configured.</strong> Please set up EmailJS environment variables to enable email sending.
+                  <strong>⚠️ Email service not configured.</strong> Please ensure your backend API is running and accessible.
                 </div>
               )}
             </div>

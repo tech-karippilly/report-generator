@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
@@ -11,6 +11,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the page the user was trying to access before being redirected to login
+  const from = location.state?.from?.pathname || '/';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,7 +28,7 @@ export default function Login() {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate('/');
+      navigate(from, { replace: true });
     } catch (error: any) {
       setError('Failed to log in. ' + (error.message || 'Please check your credentials.'));
     } finally {
