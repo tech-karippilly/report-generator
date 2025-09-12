@@ -23,12 +23,12 @@ export default function PointsReport({ selectedBatchId, batches }: PointsReportP
 
   // Load all student points from all batches
   useEffect(() => {
-    if (batches.length === 0) {
+    if (batches.length === 0 || !db) {
       setLoading(false);
       return;
     }
 
-    const loadAllStudentPoints = async () => {
+    const loadAllStudentPoints = () => {
       const allPoints: StudentWithBatch[] = [];
 
       // Process each batch
@@ -49,6 +49,7 @@ export default function PointsReport({ selectedBatchId, batches }: PointsReportP
       }
 
       // Load point updates to calculate earned/lost points
+      if (!db) return;
       const updatesQuery = query(
         collection(db, 'pointUpdates'),
         orderBy('createdAt', 'desc')
@@ -84,8 +85,7 @@ export default function PointsReport({ selectedBatchId, batches }: PointsReportP
       return unsubscribe;
     };
 
-    const unsubscribe = loadAllStudentPoints();
-    return unsubscribe;
+    return loadAllStudentPoints();
   }, [batches]);
 
   // Filter and sort students
