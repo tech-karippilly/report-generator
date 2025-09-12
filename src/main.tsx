@@ -17,6 +17,7 @@ import Register from './pages/Register.tsx'
 import ForgotPassword from './pages/ForgotPassword.tsx'
 import ResetPassword from './pages/ResetPassword.tsx'
 import EmailDebug from './pages/EmailDebug.tsx'
+import PointSystemPage from './pages/PointSystem.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 const router = createBrowserRouter([
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
       { index: true, element: <BatchesPage /> },
       { path: 'batches', element: <BatchesPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'points', element: <PointSystemPage /> },
       { path: 'email-automation', element: <EmailAutomationPage /> },
       { path: 'email-test', element: <EmailTestPage /> },
       { path: 'email-debug', element: <EmailDebug /> },

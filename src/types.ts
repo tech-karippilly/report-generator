@@ -5,6 +5,7 @@ export interface Student {
   name: string;
   email: string;
   phone?: Phone;
+  points?: number; // Current points, defaults to 100
 }
 
 export interface Person {
@@ -61,5 +62,27 @@ export interface SessionReport {
   meetUrl?: string;
   reportedBy: string; // free text
   createdAt: number;
+}
+
+export interface PointUpdate {
+  id: string;
+  studentId: string;
+  studentName: string;
+  batchId: string;
+  batchCode: string;
+  pointsChange: number; // Can be positive or negative
+  reason: string; // Text explaining why points were added/removed
+  updatedBy: string; // User who made the update
+  dateISO: string; // yyyy-mm-dd
+  createdAt: number;
+}
+
+export interface StudentPoints {
+  studentId: string;
+  studentName: string;
+  currentPoints: number;
+  totalPointsEarned: number;
+  totalPointsLost: number;
+  lastUpdated: number;
 }
 
