@@ -6,6 +6,9 @@ import type { Batch, Student, PointUpdate, StudentPoints } from '../types';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
 import PointsReport from '../components/PointsReport';
+import AddPointsModal from '../components/AddPointsModal';
+import PointsTable from '../components/PointsTable';
+import PerformanceCards from '../components/PerformanceCards';
 
 export default function PointSystemPage() {
   const { currentUser } = useAuth();
@@ -23,7 +26,8 @@ export default function PointSystemPage() {
   const [pointsChange, setPointsChange] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [currentView, setCurrentView] = useState<'manage' | 'report'>('manage');
+  const [currentView, setCurrentView] = useState<'manage' | 'report' | 'table' | 'performance'>('manage');
+  const [showAddPointsModal, setShowAddPointsModal] = useState(false);
 
   // Load batches
   useEffect(() => {
@@ -214,11 +218,11 @@ export default function PointSystemPage() {
             </div>
             
             {/* View Toggle */}
-            <div className="flex mt-4 sm:mt-0">
-              <div className="bg-gray-100 rounded-lg p-1">
+            <div className="flex flex-col sm:flex-row gap-4 mt-4 sm:mt-0">
+              <div className="bg-gray-100 rounded-lg p-1 flex flex-wrap">
                 <button
                   onClick={() => setCurrentView('manage')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     currentView === 'manage'
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
@@ -228,7 +232,7 @@ export default function PointSystemPage() {
                 </button>
                 <button
                   onClick={() => setCurrentView('report')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     currentView === 'report'
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
@@ -236,7 +240,35 @@ export default function PointSystemPage() {
                 >
                   Points Report
                 </button>
+                <button
+                  onClick={() => setCurrentView('table')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'table'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Points Table
+                </button>
+                <button
+                  onClick={() => setCurrentView('performance')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'performance'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Performance
+                </button>
               </div>
+              
+              {/* Add Points Button */}
+              <Button
+                onClick={() => setShowAddPointsModal(true)}
+                className="px-4 py-2"
+              >
+                + Add Points
+              </Button>
             </div>
           </div>
         </div>
@@ -246,6 +278,10 @@ export default function PointSystemPage() {
 
         {currentView === 'report' ? (
           <PointsReport selectedBatchId={selectedBatchId} batches={batches} />
+        ) : currentView === 'table' ? (
+          <PointsTable selectedBatchId={selectedBatchId} batches={batches} />
+        ) : currentView === 'performance' ? (
+          <PerformanceCards selectedBatchId={selectedBatchId} batches={batches} />
         ) : (
           <>
             {/* Batch Selection */}
@@ -419,6 +455,18 @@ export default function PointSystemPage() {
             )}
           </>
         )}
+
+        {/* Add Points Modal */}
+        <AddPointsModal
+          isOpen={showAddPointsModal}
+          onClose={() => setShowAddPointsModal(false)}
+          batches={batches}
+          onPointsUpdated={() => {
+            // Refresh the current view
+            setSuccess('Points updated successfully!');
+            setTimeout(() => setSuccess(''), 3000);
+          }}
+        />
       </div>
     </div>
   );
