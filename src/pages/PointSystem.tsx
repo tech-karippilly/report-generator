@@ -5,11 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Batch, Student, PointUpdate, StudentPoints } from '../types';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
-import PointsReport from '../components/PointsReport';
 import AddPointsModal from '../components/AddPointsModal';
-import PointsTable from '../components/PointsTable';
-import PerformanceCards from '../components/PerformanceCards';
-import WeeklyPointsTable from '../components/WeeklyPointsTable';
 
 export default function PointSystemPage() {
   const { currentUser } = useAuth();
@@ -27,7 +23,6 @@ export default function PointSystemPage() {
   const [pointsChange, setPointsChange] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [currentView, setCurrentView] = useState<'manage' | 'report' | 'table' | 'performance' | 'weekly'>('manage');
   const [showAddPointsModal, setShowAddPointsModal] = useState(false);
 
   // Load batches
@@ -218,65 +213,11 @@ export default function PointSystemPage() {
               <p className="text-gray-600">Monitor and update student points based on their performance</p>
             </div>
             
-            {/* View Toggle */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-4 sm:mt-0">
-              <div className="bg-gray-100 rounded-lg p-1 flex flex-wrap">
-                <button
-                  onClick={() => setCurrentView('manage')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'manage'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Manage Points
-                </button>
-                <button
-                  onClick={() => setCurrentView('report')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'report'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Points Report
-                </button>
-                <button
-                  onClick={() => setCurrentView('table')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'table'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Points Table
-                </button>
-                <button
-                  onClick={() => setCurrentView('performance')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'performance'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Performance
-                </button>
-                <button
-                  onClick={() => setCurrentView('weekly')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'weekly'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Weekly Table
-                </button>
-              </div>
-              
-              {/* Add Points Button */}
+            {/* Add Points Button */}
+            <div className="flex justify-end mt-4 sm:mt-0">
               <Button
                 onClick={() => setShowAddPointsModal(true)}
-                className="px-4 py-2"
+                className="px-6 py-3 text-lg"
               >
                 + Add Points
               </Button>
@@ -287,16 +228,7 @@ export default function PointSystemPage() {
         {error && <Alert tone="error">{error}</Alert>}
         {success && <Alert tone="success">{success}</Alert>}
 
-        {currentView === 'report' ? (
-          <PointsReport selectedBatchId={selectedBatchId} batches={batches} />
-        ) : currentView === 'table' ? (
-          <PointsTable selectedBatchId={selectedBatchId} batches={batches} />
-        ) : currentView === 'performance' ? (
-          <PerformanceCards selectedBatchId={selectedBatchId} batches={batches} />
-        ) : currentView === 'weekly' ? (
-          <WeeklyPointsTable selectedBatchId={selectedBatchId} batches={batches} />
-        ) : (
-          <>
+        <>
             {/* Batch Selection */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Batch</h2>
@@ -466,8 +398,7 @@ export default function PointSystemPage() {
                 )}
               </>
             )}
-          </>
-        )}
+        </>
 
         {/* Add Points Modal */}
         <AddPointsModal
