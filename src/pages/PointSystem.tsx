@@ -9,6 +9,7 @@ import PointsReport from '../components/PointsReport';
 import AddPointsModal from '../components/AddPointsModal';
 import PointsTable from '../components/PointsTable';
 import PerformanceCards from '../components/PerformanceCards';
+import WeeklyPointsTable from '../components/WeeklyPointsTable';
 
 export default function PointSystemPage() {
   const { currentUser } = useAuth();
@@ -26,7 +27,7 @@ export default function PointSystemPage() {
   const [pointsChange, setPointsChange] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [currentView, setCurrentView] = useState<'manage' | 'report' | 'table' | 'performance'>('manage');
+  const [currentView, setCurrentView] = useState<'manage' | 'report' | 'table' | 'performance' | 'weekly'>('manage');
   const [showAddPointsModal, setShowAddPointsModal] = useState(false);
 
   // Load batches
@@ -260,6 +261,16 @@ export default function PointSystemPage() {
                 >
                   Performance
                 </button>
+                <button
+                  onClick={() => setCurrentView('weekly')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'weekly'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Weekly Table
+                </button>
               </div>
               
               {/* Add Points Button */}
@@ -282,6 +293,8 @@ export default function PointSystemPage() {
           <PointsTable selectedBatchId={selectedBatchId} batches={batches} />
         ) : currentView === 'performance' ? (
           <PerformanceCards selectedBatchId={selectedBatchId} batches={batches} />
+        ) : currentView === 'weekly' ? (
+          <WeeklyPointsTable selectedBatchId={selectedBatchId} batches={batches} />
         ) : (
           <>
             {/* Batch Selection */}

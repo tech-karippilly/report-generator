@@ -13,22 +13,37 @@ interface AddPointsModalProps {
   onPointsUpdated: () => void;
 }
 
-interface StudentPointUpdate {
-  studentId: string;
-  studentName: string;
+interface PointEntry {
+  id: string;
   pointsChange: number;
   reason: string;
+  category?: string;
 }
 
 export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdated }: AddPointsModalProps) {
   const { currentUser } = useAuth();
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
-  const [studentUpdates, setStudentUpdates] = useState<StudentPointUpdate[]>([]);
+  const [pointEntries, setPointEntries] = useState<PointEntry[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+
+  // Predefined point categories
+  const pointCategories = [
+    { label: 'Late Attendance', points: -5, reason: 'Arrived late to class' },
+    { label: 'Active Participation', points: 10, reason: 'Actively participated in discussion' },
+    { label: 'Excellent Answer', points: 15, reason: 'Gave excellent answer to question' },
+    { label: 'Helping Others', points: 8, reason: 'Helped fellow students' },
+    { label: 'Disruptive Behavior', points: -10, reason: 'Disrupted class with inappropriate behavior' },
+    { label: 'Missing Assignment', points: -15, reason: 'Did not submit assigned work' },
+    { label: 'Outstanding Performance', points: 20, reason: 'Exceptional performance in activity' },
+    { label: 'Incomplete Work', points: -8, reason: 'Submitted incomplete work' },
+    { label: 'Leadership', points: 12, reason: 'Showed leadership qualities' },
+    { label: 'Absent', points: -20, reason: 'Absent from class without notice' }
+  ];
 
   // Load students when batch is selected
   useEffect(() => {
@@ -36,46 +51,61 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
       const selectedBatch = batches.find(b => b.id === selectedBatchId);
       if (selectedBatch) {
         setStudents(selectedBatch.students || []);
-        // Initialize student updates
-        const initialUpdates: StudentPointUpdate[] = (selectedBatch.students || []).map(student => ({
-          studentId: student.id,
-          studentName: student.name,
-          pointsChange: 0,
-          reason: ''
-        }));
-        setStudentUpdates(initialUpdates);
       }
     } else {
       setStudents([]);
-      setStudentUpdates([]);
     }
+    // Reset student selection and point entries when batch changes
+    setSelectedStudentId('');
+    setPointEntries([]);
   }, [selectedBatchId, batches]);
 
-  const handlePointsChange = (studentId: string, pointsChange: number) => {
-    setStudentUpdates(prev => prev.map(update => 
-      update.studentId === studentId 
-        ? { ...update, pointsChange }
-        : update
+  // Reset point entries when student changes
+  useEffect(() => {
+    setPointEntries([]);
+  }, [selectedStudentId]);
+
+  const addPointEntry = (category: typeof pointCategories[0]) => {
+    const newEntry: PointEntry = {
+      id: Date.now().toString(),
+      pointsChange: category.points,
+      reason: category.reason,
+      category: category.label
+    };
+    setPointEntries(prev => [...prev, newEntry]);
+  };
+
+  const updatePointEntry = (id: string, field: 'pointsChange' | 'reason', value: string | number) => {
+    setPointEntries(prev => prev.map(entry => 
+      entry.id === id 
+        ? { ...entry, [field]: value }
+        : entry
     ));
   };
 
-  const handleReasonChange = (studentId: string, reason: string) => {
-    setStudentUpdates(prev => prev.map(update => 
-      update.studentId === studentId 
-        ? { ...update, reason }
-        : update
-    ));
+  const removePointEntry = (id: string) => {
+    setPointEntries(prev => prev.filter(entry => entry.id !== id));
+  };
+
+  const addCustomPointEntry = () => {
+    const newEntry: PointEntry = {
+      id: Date.now().toString(),
+      pointsChange: 0,
+      reason: '',
+      category: 'Custom'
+    };
+    setPointEntries(prev => [...prev, newEntry]);
   };
 
   const handleSave = async () => {
-    if (!selectedBatchId || !currentUser) {
-      setError('Please select a batch and ensure you are logged in');
+    if (!selectedBatchId || !selectedStudentId || !currentUser) {
+      setError('Please select a batch, student, and ensure you are logged in');
       return;
     }
 
-    const updatesToSave = studentUpdates.filter(update => update.pointsChange !== 0 && update.reason.trim());
-    if (updatesToSave.length === 0) {
-      setError('Please add at least one point update with a reason');
+    const validEntries = pointEntries.filter(entry => entry.pointsChange !== 0 && entry.reason.trim());
+    if (validEntries.length === 0) {
+      setError('Please add at least one point entry with a reason');
       return;
     }
 
@@ -84,19 +114,23 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
 
     try {
       const selectedBatch = batches.find(b => b.id === selectedBatchId);
-      if (!selectedBatch || !db) {
-        throw new Error('Batch not found or database not available');
+      const selectedStudent = students.find(s => s.id === selectedStudentId);
+      if (!selectedBatch || !selectedStudent || !db) {
+        throw new Error('Batch or student not found or database not available');
       }
 
-      // Save each point update
-      for (const update of updatesToSave) {
+      // Calculate total points change
+      const totalPointsChange = validEntries.reduce((sum, entry) => sum + entry.pointsChange, 0);
+
+      // Save each point entry as a separate update
+      for (const entry of validEntries) {
         const pointUpdate: Omit<PointUpdate, 'id'> = {
-          studentId: update.studentId,
-          studentName: update.studentName,
+          studentId: selectedStudentId,
+          studentName: selectedStudent.name,
           batchId: selectedBatchId,
           batchCode: selectedBatch.code,
-          pointsChange: update.pointsChange,
-          reason: update.reason.trim(),
+          pointsChange: entry.pointsChange,
+          reason: entry.reason.trim(),
           updatedBy: currentUser.email || 'Unknown',
           dateISO: selectedDate,
           createdAt: Date.now()
@@ -107,11 +141,10 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
 
       // Update student points in the batch
       const updatedStudents = selectedBatch.students.map(student => {
-        const update = updatesToSave.find(u => u.studentId === student.id);
-        if (update) {
+        if (student.id === selectedStudentId) {
           return {
             ...student,
-            points: (student.points || 100) + update.pointsChange
+            points: (student.points || 100) + totalPointsChange
           };
         }
         return student;
@@ -121,20 +154,17 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
         students: updatedStudents
       });
 
-      setSuccess('Points updated successfully!');
+      setSuccess(`Points updated successfully! Total change: ${totalPointsChange >= 0 ? '+' : ''}${totalPointsChange}`);
       onPointsUpdated();
       
       // Reset form
-      setStudentUpdates(prev => prev.map(update => ({
-        ...update,
-        pointsChange: 0,
-        reason: ''
-      })));
+      setPointEntries([]);
+      setSelectedStudentId('');
 
       setTimeout(() => {
         setSuccess('');
         onClose();
-      }, 2000);
+      }, 3000);
 
     } catch (error) {
       console.error('Error updating points:', error);
@@ -145,11 +175,8 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
   };
 
   const handleClose = () => {
-    setStudentUpdates(prev => prev.map(update => ({
-      ...update,
-      pointsChange: 0,
-      reason: ''
-    })));
+    setPointEntries([]);
+    setSelectedStudentId('');
     setError('');
     setSuccess('');
     onClose();
@@ -178,8 +205,8 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
           {error && <Alert tone="error">{error}</Alert>}
           {success && <Alert tone="success">{success}</Alert>}
 
-          {/* Batch and Date Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Batch, Date, and Student Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Batch
@@ -211,68 +238,128 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
                 required
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Student
+              </label>
+              <select
+                value={selectedStudentId}
+                onChange={(e) => setSelectedStudentId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                disabled={!selectedBatchId}
+              >
+                <option value="">Choose a student</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name} (Current: {student.points || 100} pts)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Students Points Update Table */}
-          {selectedBatchId && students.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Update Points for Students
-              </h3>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Student Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Current Points
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Points Change
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reason
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map((student) => {
-                      const update = studentUpdates.find(u => u.studentId === student.id);
-                      return (
-                        <tr key={student.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {student.name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {student.points || 100}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+          {/* Point Categories */}
+          {selectedStudentId && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Quick Add Points
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {pointCategories.map((category, index) => (
+                    <button
+                      key={index}
+                      onClick={() => addPointEntry(category)}
+                      className={`p-3 rounded-lg border text-sm font-medium transition-colors ${
+                        category.points > 0
+                          ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                          : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      <div className="font-bold">
+                        {category.points > 0 ? '+' : ''}{category.points}
+                      </div>
+                      <div className="text-xs mt-1">{category.label}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={addCustomPointEntry}
+                    className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    + Add Custom Entry
+                  </button>
+                </div>
+              </div>
+
+              {/* Point Entries */}
+              {pointEntries.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Point Entries for {students.find(s => s.id === selectedStudentId)?.name}
+                  </h3>
+                  <div className="space-y-3">
+                    {pointEntries.map((entry) => (
+                      <div key={entry.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-700">
+                            {entry.category}
+                          </span>
+                          <button
+                            onClick={() => removePointEntry(entry.id)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Points Change
+                            </label>
                             <input
                               type="number"
-                              value={update?.pointsChange || 0}
-                              onChange={(e) => handlePointsChange(student.id, parseInt(e.target.value) || 0)}
-                              placeholder="+10 or -5"
-                              className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={entry.pointsChange}
+                              onChange={(e) => updatePointEntry(entry.id, 'pointsChange', parseInt(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Reason
+                            </label>
                             <input
                               type="text"
-                              value={update?.reason || ''}
-                              onChange={(e) => handleReasonChange(student.id, e.target.value)}
-                              placeholder="Reason for change"
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={entry.reason}
+                              onChange={(e) => updatePointEntry(entry.id, 'reason', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Enter reason for this point change"
                             />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Total Summary */}
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Total Points Change:</span>
+                      <span className={`text-lg font-bold ${
+                        pointEntries.reduce((sum, entry) => sum + entry.pointsChange, 0) >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {pointEntries.reduce((sum, entry) => sum + entry.pointsChange, 0) >= 0 ? '+' : ''}
+                        {pointEntries.reduce((sum, entry) => sum + entry.pointsChange, 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -287,7 +374,7 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !selectedBatchId}
+            disabled={isSaving || !selectedBatchId || !selectedStudentId || pointEntries.length === 0}
           >
             {isSaving ? 'Saving...' : 'Save Points'}
           </Button>
