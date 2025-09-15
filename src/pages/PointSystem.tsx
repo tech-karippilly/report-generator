@@ -488,10 +488,27 @@ export default function PointSystemPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {students.map((student) => (
-                        <div key={student.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                      {students
+                        .sort((a, b) => (b.points || 100) - (a.points || 100))
+                        .map((student, index) => (
+                        <div key={student.id} className={`rounded-lg p-4 border hover:shadow-md transition-shadow ${
+                          index === 0 ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' :
+                          index === 1 ? 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-300' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-50 to-red-50 border-orange-200' :
+                          'bg-gray-50 border-gray-200'
+                        }`}>
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-medium text-gray-900">{student.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                                index === 0 ? 'bg-yellow-500 text-white' :
+                                index === 1 ? 'bg-gray-400 text-white' :
+                                index === 2 ? 'bg-orange-600 text-white' :
+                                'bg-gray-200 text-gray-600'
+                              }`}>
+                                {index + 1}
+                              </span>
+                              <h3 className="font-medium text-gray-900">{student.name}</h3>
+                            </div>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold ${getPointsColor(student.points || 100)}`}>
                               {student.points || 100} pts
                             </span>
@@ -511,13 +528,19 @@ export default function PointSystemPage() {
                             <div className="flex justify-between">
                               <span>Status:</span>
                               <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                                index === 1 ? 'bg-gray-100 text-gray-800' :
+                                index === 2 ? 'bg-orange-100 text-orange-800' :
                                 (student.points || 100) >= 80 
                                   ? 'bg-green-100 text-green-800' 
                                   : (student.points || 100) >= 60 
                                     ? 'bg-yellow-100 text-yellow-800'
                                     : 'bg-red-100 text-red-800'
                               }`}>
-                                {(student.points || 100) >= 80 ? 'Excellent' : 
+                                {index === 0 ? '🥇 1st Place' :
+                                 index === 1 ? '🥈 2nd Place' :
+                                 index === 2 ? '🥉 3rd Place' :
+                                 (student.points || 100) >= 80 ? 'Excellent' : 
                                  (student.points || 100) >= 60 ? 'Good' : 'Needs Improvement'}
                               </span>
                             </div>
