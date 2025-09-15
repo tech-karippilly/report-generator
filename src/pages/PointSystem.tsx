@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Batch, Student, PointUpdate, StudentPoints } from '../types';
+import type { Batch, Student, PointUpdate } from '../types';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
 import AddPointsModal from '../components/AddPointsModal';
@@ -12,7 +12,6 @@ export default function PointSystemPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
-  const [studentPoints, setStudentPoints] = useState<StudentPoints[]>([]);
   const [pointUpdates, setPointUpdates] = useState<PointUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -49,7 +48,6 @@ export default function PointSystemPage() {
   useEffect(() => {
     if (!selectedBatchId) {
       setStudents([]);
-      setStudentPoints([]);
       setPointUpdates([]);
       return;
     }
@@ -57,17 +55,6 @@ export default function PointSystemPage() {
     const selectedBatch = batches.find(b => b.id === selectedBatchId);
     if (selectedBatch) {
       setStudents(selectedBatch.students || []);
-      
-      // Initialize student points (default to 100 if not set)
-      const initialPoints: StudentPoints[] = (selectedBatch.students || []).map(student => ({
-        studentId: student.id,
-        studentName: student.name,
-        currentPoints: student.points || 100,
-        totalPointsEarned: 0,
-        totalPointsLost: 0,
-        lastUpdated: Date.now()
-      }));
-      setStudentPoints(initialPoints);
 
       // Load point updates for this batch
       if (!db) return;
@@ -157,17 +144,14 @@ export default function PointSystemPage() {
         });
       }
 
-      // Update local state
-      setStudentPoints(prev => prev.map(sp => 
-        sp.studentId === selectedStudentId 
+      // Update local students state
+      setStudents(prev => prev.map(student => 
+        student.id === selectedStudentId 
           ? {
-              ...sp,
-              currentPoints: sp.currentPoints + pointsChangeNum,
-              totalPointsEarned: pointsChangeNum > 0 ? sp.totalPointsEarned + pointsChangeNum : sp.totalPointsEarned,
-              totalPointsLost: pointsChangeNum < 0 ? sp.totalPointsLost + Math.abs(pointsChangeNum) : sp.totalPointsLost,
-              lastUpdated: Date.now()
+              ...student,
+              points: (student.points || 100) + pointsChangeNum
             }
-          : sp
+          : student
       ));
 
       setSuccess(`Points ${pointsChangeNum > 0 ? 'added' : 'removed'} successfully!`);
@@ -254,52 +238,89 @@ export default function PointSystemPage() {
               <>
                 {/* Students Points Display */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Student Points</h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Student Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Current Points
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Total Earned
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Total Lost
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Updated
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {studentPoints.map((student) => (
-                          <tr key={student.studentId} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {student.studentName}
-                            </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${getPointsColor(student.currentPoints)}`}>
-                              {student.currentPoints}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                              +{student.totalPointsEarned}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                              -{student.totalPointsLost}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(student.lastUpdated).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Student Points</h2>
+                    <div className="text-sm text-gray-500">
+                      {students.length} students in this batch
+                    </div>
                   </div>
+                  
+                  {students.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No students found in this batch.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {students.map((student) => (
+                        <div key={student.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-medium text-gray-900">{student.name}</h3>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold ${getPointsColor(student.points || 100)}`}>
+                              {student.points || 100} pts
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex justify-between">
+                              <span>Email:</span>
+                              <span className="text-gray-900">{student.email}</span>
+                            </div>
+                            {student.phone && (
+                              <div className="flex justify-between">
+                                <span>Phone:</span>
+                                <span className="text-gray-900">{student.phone}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span>Status:</span>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                (student.points || 100) >= 80 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : (student.points || 100) >= 60 
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-red-100 text-red-800'
+                              }`}>
+                                {(student.points || 100) >= 80 ? 'Excellent' : 
+                                 (student.points || 100) >= 60 ? 'Good' : 'Needs Improvement'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Batch Summary */}
+                {students.length > 0 && (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Batch Summary</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">{students.length}</div>
+                        <div className="text-sm text-blue-700">Total Students</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {Math.round(students.reduce((sum, s) => sum + (s.points || 100), 0) / students.length)}
+                        </div>
+                        <div className="text-sm text-green-700">Average Points</div>
+                      </div>
+                      <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {Math.max(...students.map(s => s.points || 100))}
+                        </div>
+                        <div className="text-sm text-yellow-700">Highest Points</div>
+                      </div>
+                      <div className="text-center p-4 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-600">
+                          {Math.min(...students.map(s => s.points || 100))}
+                        </div>
+                        <div className="text-sm text-red-700">Lowest Points</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Update Points Form */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
