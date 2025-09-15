@@ -2,10 +2,35 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Batch, Student, PointUpdate } from '../types';
+import type { Batch, Student, PointUpdate, WeeklyBestPerformer } from '../types';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
 import AddPointsModal from '../components/AddPointsModal';
+
+// Utility functions for week calculations (Monday to Saturday)
+const getWeekStart = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  return new Date(d.setDate(diff));
+};
+
+const getWeekEnd = (date: Date): Date => {
+  const start = getWeekStart(date);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 5); // Saturday is 5 days after Monday
+  return end;
+};
+
+const getWeekNumber = (date: Date): number => {
+  const start = new Date(date.getFullYear(), 0, 1);
+  const days = Math.floor((date.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil((days + start.getDay() + 1) / 7);
+};
+
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
 
 export default function PointSystemPage() {
   const { currentUser } = useAuth();
@@ -13,6 +38,7 @@ export default function PointSystemPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
   const [pointUpdates, setPointUpdates] = useState<PointUpdate[]>([]);
+  const [weeklyBestPerformers, setWeeklyBestPerformers] = useState<WeeklyBestPerformer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
@@ -78,6 +104,28 @@ export default function PointSystemPage() {
       return unsubscribe;
     }
   }, [selectedBatchId, batches]);
+
+  // Load weekly best performers
+  useEffect(() => {
+    if (!db) return;
+
+    const weeklyQuery = query(
+      collection(db, 'weeklyBestPerformers'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(weeklyQuery, (snapshot) => {
+      const performers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as WeeklyBestPerformer));
+      setWeeklyBestPerformers(performers);
+    }, (error) => {
+      console.error('Error loading weekly best performers:', error);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleUpdatePoints = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +224,93 @@ export default function PointSystemPage() {
     return 'text-red-600';
   };
 
+  // Function to save weekly best performer and reset points
+  const saveWeeklyBestPerformerAndReset = async () => {
+    if (!selectedBatchId || !currentUser || !db) {
+      setError('Please select a batch and ensure you are logged in');
+      return;
+    }
+
+    const selectedBatch = batches.find(b => b.id === selectedBatchId);
+    if (!selectedBatch || students.length === 0) {
+      setError('No students found in this batch');
+      return;
+    }
+
+    try {
+      // Find the best performer
+      const bestStudent = students.reduce((best, current) => 
+        (current.points || 100) > (best.points || 100) ? current : best
+      );
+
+      // Calculate week information
+      const now = new Date();
+      const weekStart = getWeekStart(now);
+      const weekEnd = getWeekEnd(now);
+      const weekNumber = getWeekNumber(now);
+
+      // Calculate points earned and lost for the week
+      const weekStartDate = formatDate(weekStart);
+      const weekEndDate = formatDate(weekEnd);
+      
+      const weekUpdates = pointUpdates.filter(update => 
+        update.dateISO >= weekStartDate && update.dateISO <= weekEndDate
+      );
+
+      const studentUpdates = weekUpdates.filter(update => update.studentId === bestStudent.id);
+      const pointsEarned = studentUpdates
+        .filter(update => update.pointsChange > 0)
+        .reduce((sum, update) => sum + update.pointsChange, 0);
+      const pointsLost = Math.abs(studentUpdates
+        .filter(update => update.pointsChange < 0)
+        .reduce((sum, update) => sum + update.pointsChange, 0));
+
+      // Create weekly best performer record
+      const weeklyBestPerformer: Omit<WeeklyBestPerformer, 'id'> = {
+        weekStartDate,
+        weekEndDate,
+        weekNumber,
+        batchId: selectedBatchId,
+        batchCode: selectedBatch.code,
+        bestPerformer: {
+          studentId: bestStudent.id,
+          studentName: bestStudent.name,
+          finalPoints: bestStudent.points || 100,
+          pointsEarned,
+          pointsLost
+        },
+        totalStudents: students.length,
+        averagePoints: Math.round(students.reduce((sum, s) => sum + (s.points || 100), 0) / students.length),
+        createdAt: Date.now(),
+        createdBy: currentUser.email || 'Unknown'
+      };
+
+      // Save to Firestore
+      await addDoc(collection(db, 'weeklyBestPerformers'), weeklyBestPerformer);
+
+      // Reset all student points to 100
+      const resetStudents = students.map(student => ({
+        ...student,
+        points: 100
+      }));
+
+      await updateDoc(doc(db, 'batches', selectedBatchId), {
+        students: resetStudents
+      });
+
+      // Update local state
+      setStudents(resetStudents);
+
+      setSuccess(`Weekly best performer saved! ${bestStudent.name} won with ${bestStudent.points || 100} points. All points reset to 100.`);
+      
+      setTimeout(() => setSuccess(''), 5000);
+
+    } catch (error) {
+      console.error('Error saving weekly best performer:', error);
+      setError('Failed to save weekly best performer. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -233,6 +368,56 @@ export default function PointSystemPage() {
                 ))}
               </div>
             </div>
+
+            {/* Weekly Best Performer Section */}
+            {selectedBatchId && students.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Weekly Best Performer</h2>
+                  <div className="text-sm text-gray-500">
+                    Week {getWeekNumber(new Date())} ({formatDate(getWeekStart(new Date()))} - {formatDate(getWeekEnd(new Date()))})
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Current Best Performer */}
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
+                    <h3 className="text-lg font-semibold text-yellow-800 mb-2">Current Week Leader</h3>
+                    {(() => {
+                      const bestStudent = students.reduce((best, current) => 
+                        (current.points || 100) > (best.points || 100) ? current : best
+                      );
+                      return (
+                        <div>
+                          <div className="text-2xl font-bold text-yellow-900">{bestStudent.name}</div>
+                          <div className="text-lg text-yellow-700">{bestStudent.points || 100} points</div>
+                          <div className="text-sm text-yellow-600 mt-1">
+                            {bestStudent.email}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Reset Points Button */}
+                  <div className="flex items-center justify-center">
+                    <Button
+                      onClick={saveWeeklyBestPerformerAndReset}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-lg font-semibold"
+                    >
+                      🏆 Save Best Performer & Reset Points
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> This will save the current week's best performer and reset all student points to 100 for the next week.
+                    Week runs from Monday to Saturday.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {selectedBatchId && (
               <>
@@ -418,6 +603,43 @@ export default function PointSystemPage() {
                   </div>
                 )}
               </>
+            )}
+
+            {/* Weekly Best Performers History */}
+            {selectedBatchId && weeklyBestPerformers.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Previous Week Winners</h2>
+                <div className="space-y-4">
+                  {weeklyBestPerformers
+                    .filter(wbp => wbp.batchId === selectedBatchId)
+                    .sort((a, b) => b.weekNumber - a.weekNumber)
+                    .slice(0, 5)
+                    .map((wbp) => (
+                      <div key={wbp.id} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg font-bold text-purple-900">🏆 {wbp.bestPerformer.studentName}</span>
+                              <span className="text-sm text-purple-600">Week {wbp.weekNumber}</span>
+                            </div>
+                            <div className="text-sm text-purple-700">
+                              {wbp.weekStartDate} to {wbp.weekEndDate}
+                            </div>
+                            <div className="text-sm text-purple-600 mt-1">
+                              Final Points: {wbp.bestPerformer.finalPoints} | 
+                              Earned: +{wbp.bestPerformer.pointsEarned} | 
+                              Lost: -{wbp.bestPerformer.pointsLost}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-purple-900">{wbp.bestPerformer.finalPoints}</div>
+                            <div className="text-sm text-purple-600">points</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
             )}
         </>
 

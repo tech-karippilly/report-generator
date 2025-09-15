@@ -86,3 +86,23 @@ export interface StudentPoints {
   lastUpdated: number;
 }
 
+export interface WeeklyBestPerformer {
+  id: string;
+  weekStartDate: string; // Monday date in YYYY-MM-DD format
+  weekEndDate: string; // Saturday date in YYYY-MM-DD format
+  weekNumber: number; // Week number in the year
+  batchId: string;
+  batchCode: string;
+  bestPerformer: {
+    studentId: string;
+    studentName: string;
+    finalPoints: number;
+    pointsEarned: number;
+    pointsLost: number;
+  };
+  totalStudents: number;
+  averagePoints: number;
+  createdAt: number;
+  createdBy: string;
+}
+
