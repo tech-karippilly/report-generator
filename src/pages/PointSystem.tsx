@@ -224,6 +224,43 @@ export default function PointSystemPage() {
     return 'text-red-600';
   };
 
+  // Function to reset points only (without saving best performer)
+  const resetPointsOnly = async () => {
+    if (!selectedBatchId || !currentUser || !db) {
+      setError('Please select a batch and ensure you are logged in');
+      return;
+    }
+
+    const selectedBatch = batches.find(b => b.id === selectedBatchId);
+    if (!selectedBatch || students.length === 0) {
+      setError('No students found in this batch');
+      return;
+    }
+
+    try {
+      // Reset all student points to 100
+      const resetStudents = students.map(student => ({
+        ...student,
+        points: 100
+      }));
+
+      await updateDoc(doc(db, 'batches', selectedBatchId), {
+        students: resetStudents
+      });
+
+      // Update local state
+      setStudents(resetStudents);
+
+      setSuccess('All student points have been reset to 100!');
+      
+      setTimeout(() => setSuccess(''), 5000);
+
+    } catch (error) {
+      console.error('Error resetting points:', error);
+      setError('Failed to reset points. Please try again.');
+    }
+  };
+
   // Function to save weekly best performer and reset points
   const saveWeeklyBestPerformerAndReset = async () => {
     if (!selectedBatchId || !currentUser || !db) {
@@ -332,8 +369,15 @@ export default function PointSystemPage() {
               <p className="text-gray-600">Monitor and update student points based on their performance</p>
             </div>
             
-            {/* Add Points Button */}
-            <div className="flex justify-end mt-4 sm:mt-0">
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end mt-4 sm:mt-0">
+              <Button
+                onClick={resetPointsOnly}
+                className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-lg"
+                disabled={!selectedBatchId || students.length === 0}
+              >
+                🔄 Reset Points
+              </Button>
               <Button
                 onClick={() => setShowAddPointsModal(true)}
                 className="px-6 py-3 text-lg"
@@ -399,21 +443,29 @@ export default function PointSystemPage() {
                     })()}
                   </div>
 
-                  {/* Reset Points Button */}
-                  <div className="flex items-center justify-center">
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-3 items-center justify-center">
                     <Button
                       onClick={saveWeeklyBestPerformerAndReset}
                       className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-lg font-semibold"
                     >
                       🏆 Save Best Performer & Reset Points
                     </Button>
+                    <Button
+                      onClick={resetPointsOnly}
+                      className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white text-lg font-semibold"
+                    >
+                      🔄 Reset Points Only
+                    </Button>
                   </div>
                 </div>
 
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> This will save the current week's best performer and reset all student points to 100 for the next week.
-                    Week runs from Monday to Saturday.
+                    <strong>Note:</strong> 
+                    <br />• <strong>Save Best Performer & Reset Points:</strong> Saves the current week's winner and resets all points to 100
+                    <br />• <strong>Reset Points Only:</strong> Just resets all student points to 100 without saving winner
+                    <br />• Week runs from Monday to Saturday
                   </p>
                 </div>
               </div>
