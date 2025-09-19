@@ -109,6 +109,26 @@ export default function Navigation() {
                   >
                     Points System
                   </Link>
+                  <Link
+                    to="/email-automation"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/email-automation') 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Email Automation
+                  </Link>
+                  <Link
+                    to="/email-test"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/email-test') 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Email Test
+                  </Link>
                 </>
               )}
             </div>
@@ -235,6 +255,26 @@ export default function Navigation() {
                 }`}
               >
                 Points System
+              </Link>
+              <Link
+                to="/email-automation"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  isActive('/email-automation') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Email Automation
+              </Link>
+              <Link
+                to="/email-test"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  isActive('/email-test') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Email Test
               </Link>
             </>
           )}

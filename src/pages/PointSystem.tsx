@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Batch, Student, PointUpdate, WeeklyBestPerformer } from '../types';
@@ -49,6 +49,14 @@ export default function PointSystemPage() {
   const [reason, setReason] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [showAddPointsModal, setShowAddPointsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [performerToDelete, setPerformerToDelete] = useState<WeeklyBestPerformer | null>(null);
+  const [showManualPerformerModal, setShowManualPerformerModal] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState<string>('');
+  const [selectedStudentForPerformer, setSelectedStudentForPerformer] = useState<string>('');
+  const [isSavingManualPerformer, setIsSavingManualPerformer] = useState(false);
+  const [currentPointsPage, setCurrentPointsPage] = useState(1);
+  const pointsPerPage = 5;
 
   // Load batches
   useEffect(() => {
@@ -83,25 +91,36 @@ export default function PointSystemPage() {
       setStudents(selectedBatch.students || []);
 
       // Load point updates for this batch
-      if (!db) return;
-      const updatesQuery = query(
-        collection(db, 'pointUpdates'),
-        where('batchId', '==', selectedBatchId),
-        orderBy('createdAt', 'desc')
-      );
+      if (!db) {
+        console.log('Database not available');
+        return;
+      }
       
-      const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
-        const updates = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as PointUpdate));
-        setPointUpdates(updates);
-      }, (error) => {
-        console.error('Error loading point updates:', error);
-        setError('Failed to load point updates');
-      });
+      try {
+        const updatesQuery = query(
+          collection(db, 'pointUpdates'),
+          where('batchId', '==', selectedBatchId),
+          orderBy('createdAt', 'desc')
+        );
+      
+        const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
+          const updates = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as PointUpdate));
+          setPointUpdates(updates);
+          setError(''); // Clear any previous errors
+        }, (error) => {
+          console.error('Error loading point updates:', error);
+          setError('Failed to load point updates');
+        });
 
-      return unsubscribe;
+        return unsubscribe;
+      } catch (error) {
+        console.error('Error setting up point updates query:', error);
+        setError('Failed to set up point updates query');
+        return;
+      }
     }
   }, [selectedBatchId, batches]);
 
@@ -120,8 +139,10 @@ export default function PointSystemPage() {
         ...doc.data()
       } as WeeklyBestPerformer));
       setWeeklyBestPerformers(performers);
+      setError(''); // Clear any previous errors
     }, (error) => {
       console.error('Error loading weekly best performers:', error);
+      setError('Failed to load weekly best performers');
     });
 
     return unsubscribe;
@@ -348,6 +369,184 @@ export default function PointSystemPage() {
     }
   };
 
+  // Function to show delete confirmation modal
+  const showDeleteConfirmation = (performer: WeeklyBestPerformer) => {
+    setPerformerToDelete(performer);
+    setShowDeleteModal(true);
+  };
+
+  // Function to delete a weekly best performer
+  const deleteWeeklyBestPerformer = async () => {
+    if (!currentUser || !db || !performerToDelete) {
+      setError('You must be logged in to delete records');
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'weeklyBestPerformers', performerToDelete.id));
+      setSuccess('Weekly best performer record deleted successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+      setShowDeleteModal(false);
+      setPerformerToDelete(null);
+    } catch (error) {
+      console.error('Error deleting weekly best performer:', error);
+      setError('Failed to delete weekly best performer record. Please try again.');
+    }
+  };
+
+  // Function to cancel delete
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setPerformerToDelete(null);
+  };
+
+  // Function to manually set weekly best performer
+  const saveManualWeeklyBestPerformer = async () => {
+    if (!selectedBatchId || !currentUser || !db || !selectedWeek || !selectedStudentForPerformer) {
+      setError('Please select a batch, week, and student');
+      return;
+    }
+
+    const selectedBatch = batches.find(b => b.id === selectedBatchId);
+    const selectedStudent = students.find(s => s.id === selectedStudentForPerformer);
+    
+    if (!selectedBatch || !selectedStudent) {
+      setError('Selected batch or student not found');
+      return;
+    }
+
+    setIsSavingManualPerformer(true);
+    setError('');
+
+    try {
+      // Calculate week information based on selected week
+      const weekNumber = parseInt(selectedWeek);
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      
+      // Calculate week start and end dates
+      const weekStart = new Date(currentYear, currentMonth, (weekNumber - 1) * 7 + 1);
+      const weekEnd = new Date(currentYear, currentMonth, Math.min(weekNumber * 7, new Date(currentYear, currentMonth + 1, 0).getDate()));
+
+      // Calculate points earned and lost for the week
+      const weekStartDate = formatDate(weekStart);
+      const weekEndDate = formatDate(weekEnd);
+      
+      const weekUpdates = pointUpdates.filter(update => 
+        update.dateISO >= weekStartDate && update.dateISO <= weekEndDate
+      );
+
+      const studentUpdates = weekUpdates.filter(update => update.studentId === selectedStudentForPerformer);
+      const pointsEarned = studentUpdates
+        .filter(update => update.pointsChange > 0)
+        .reduce((sum, update) => sum + update.pointsChange, 0);
+      const pointsLost = Math.abs(studentUpdates
+        .filter(update => update.pointsChange < 0)
+        .reduce((sum, update) => sum + update.pointsChange, 0));
+
+      // Create weekly best performer record
+      const weeklyBestPerformer: Omit<WeeklyBestPerformer, 'id'> = {
+        weekStartDate,
+        weekEndDate,
+        weekNumber,
+        batchId: selectedBatchId,
+        batchCode: selectedBatch.code,
+        bestPerformer: {
+          studentId: selectedStudentForPerformer,
+          studentName: selectedStudent.name,
+          finalPoints: selectedStudent.points || 100,
+          pointsEarned,
+          pointsLost
+        },
+        totalStudents: students.length,
+        averagePoints: Math.round(students.reduce((sum, s) => sum + (s.points || 100), 0) / students.length),
+        createdAt: Date.now(),
+        createdBy: currentUser.email || 'Unknown'
+      };
+
+      // Save to Firestore
+      await addDoc(collection(db, 'weeklyBestPerformers'), weeklyBestPerformer);
+
+      setSuccess(`Weekly best performer set! ${selectedStudent.name} is now the winner for Week ${weekNumber}.`);
+      setTimeout(() => setSuccess(''), 5000);
+      
+      setShowManualPerformerModal(false);
+      setSelectedWeek('');
+      setSelectedStudentForPerformer('');
+
+    } catch (error) {
+      console.error('Error saving manual weekly best performer:', error);
+      setError('Failed to save weekly best performer. Please try again.');
+    } finally {
+      setIsSavingManualPerformer(false);
+    }
+  };
+
+  // Function to cancel manual performer
+  const cancelManualPerformer = () => {
+    setShowManualPerformerModal(false);
+    setSelectedWeek('');
+    setSelectedStudentForPerformer('');
+  };
+
+  // Pagination logic for recent points
+  const totalPointsPages = Math.ceil(pointUpdates.length / pointsPerPage);
+  const startPointsIndex = (currentPointsPage - 1) * pointsPerPage;
+  const paginatedPointUpdates = pointUpdates.slice(startPointsIndex, startPointsIndex + pointsPerPage);
+
+  // Function to restore points from history
+  const restorePointsFromHistory = async () => {
+    if (!selectedBatchId || !currentUser || !db) {
+      setError('Please select a batch and ensure you are logged in');
+      return;
+    }
+
+    const selectedBatch = batches.find(b => b.id === selectedBatchId);
+    if (!selectedBatch || students.length === 0) {
+      setError('No students found in this batch');
+      return;
+    }
+
+    if (!confirm('This will restore all student points based on their point update history. This action cannot be undone. Continue?')) {
+      return;
+    }
+
+    try {
+      // Calculate points for each student based on their update history
+      const restoredStudents = students.map(student => {
+        // Get all point updates for this student
+        const studentUpdates = pointUpdates.filter(update => update.studentId === student.id);
+        
+        // Calculate total points change from history
+        const totalPointsChange = studentUpdates.reduce((sum, update) => sum + update.pointsChange, 0);
+        
+        // Restore points to 100 + total changes
+        const restoredPoints = 100 + totalPointsChange;
+        
+        return {
+          ...student,
+          points: Math.max(0, restoredPoints) // Ensure points don't go below 0
+        };
+      });
+
+      // Update the batch in Firestore
+      await updateDoc(doc(db, 'batches', selectedBatchId), {
+        students: restoredStudents
+      });
+
+      // Update local state
+      setStudents(restoredStudents);
+
+      setSuccess('Points restored successfully from history!');
+      setTimeout(() => setSuccess(''), 5000);
+
+    } catch (error) {
+      console.error('Error restoring points:', error);
+      setError('Failed to restore points. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -372,17 +571,31 @@ export default function PointSystemPage() {
             {/* Action Buttons */}
             <div className="flex gap-3 justify-end mt-4 sm:mt-0">
               <Button
+                onClick={restorePointsFromHistory}
+                className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold"
+                disabled={!selectedBatchId || students.length === 0 || pointUpdates.length === 0}
+              >
+                🔄 Restore Points
+              </Button>
+              <Button
                 onClick={resetPointsOnly}
-                className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-lg"
+                className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-lg font-semibold"
                 disabled={!selectedBatchId || students.length === 0}
               >
                 🔄 Reset Points
               </Button>
               <Button
                 onClick={() => setShowAddPointsModal(true)}
-                className="px-6 py-3 text-lg"
+                className="px-6 py-3 text-lg font-semibold !text-gray-800"
               >
                 + Add Points
+              </Button>
+              <Button
+                onClick={() => setShowManualPerformerModal(true)}
+                className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white text-lg font-semibold"
+                disabled={!selectedBatchId || students.length === 0}
+              >
+                🏆 Set Best Performer
               </Button>
             </div>
           </div>
@@ -390,6 +603,23 @@ export default function PointSystemPage() {
 
         {error && <Alert tone="error">{error}</Alert>}
         {success && <Alert tone="success">{success}</Alert>}
+
+        {/* Helpful Info */}
+        {selectedBatchId && pointUpdates.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <span className="text-blue-600 text-lg">💡</span>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Point History Available</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  You have {pointUpdates.length} point updates in history. You can restore points to their previous state using the "Restore Points" button above.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <>
             {/* Batch Selection */}
@@ -419,7 +649,7 @@ export default function PointSystemPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900">Weekly Best Performer</h2>
                   <div className="text-sm text-gray-500">
-                    Week {getWeekNumber(new Date())} ({formatDate(getWeekStart(new Date()))} - {formatDate(getWeekEnd(new Date()))})
+                    Week {Math.ceil(new Date().getDate() / 7)} of {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} - {new Date().toLocaleDateString()}
                   </div>
                 </div>
                 
@@ -582,80 +812,18 @@ export default function PointSystemPage() {
                   </div>
                 )}
 
-                {/* Update Points Form */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Update Points</h2>
-                  <form onSubmit={handleUpdatePoints} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Select Student
-                        </label>
-                        <select
-                          value={selectedStudentId}
-                          onChange={(e) => setSelectedStudentId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        >
-                          <option value="">Choose a student</option>
-                          {students.map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Points Change
-                        </label>
-                        <input
-                          type="number"
-                          value={pointsChange}
-                          onChange={(e) => setPointsChange(e.target.value)}
-                          placeholder="e.g., +10 or -5"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Use positive numbers to add points, negative to subtract
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Reason
-                        </label>
-                        <input
-                          type="text"
-                          value={reason}
-                          onChange={(e) => setReason(e.target.value)}
-                          placeholder="e.g., Good participation in class"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button
-                        type="submit"
-                        disabled={isUpdating}
-                        className="px-6 py-2"
-                      >
-                        {isUpdating ? 'Updating...' : 'Update Points'}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
 
                 {/* Point Updates History */}
                 {pointUpdates.length > 0 && (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Point Updates</h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-semibold text-gray-900">Recent Point Updates</h2>
+                      <div className="text-sm text-gray-500">
+                        {pointUpdates.length} total updates
+                      </div>
+                    </div>
                     <div className="space-y-3">
-                      {pointUpdates.slice(0, 10).map((update) => (
+                      {paginatedPointUpdates.map((update) => (
                         <div key={update.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -675,6 +843,36 @@ export default function PointSystemPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Pagination for Point Updates */}
+                    {totalPointsPages > 1 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                        <div className="text-sm text-gray-700">
+                          Showing {startPointsIndex + 1} to {Math.min(startPointsIndex + pointsPerPage, pointUpdates.length)} of {pointUpdates.length} updates
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="primary"
+                            disabled={currentPointsPage === 1}
+                            onClick={() => setCurrentPointsPage(currentPointsPage - 1)}
+                            className="px-3 py-1 text-sm"
+                          >
+                            Previous
+                          </Button>
+                          <span className="px-3 py-1 text-sm text-gray-700">
+                            Page {currentPointsPage} of {totalPointsPages}
+                          </span>
+                          <Button
+                            variant="primary"
+                            disabled={currentPointsPage === totalPointsPages}
+                            onClick={() => setCurrentPointsPage(currentPointsPage + 1)}
+                            className="px-3 py-1 text-sm"
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -683,7 +881,12 @@ export default function PointSystemPage() {
             {/* Weekly Best Performers History */}
             {selectedBatchId && weeklyBestPerformers.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Previous Week Winners</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Previous Week Winners</h2>
+                  <div className="text-sm text-gray-500">
+                    {weeklyBestPerformers.filter(wbp => wbp.batchId === selectedBatchId).length} records
+                  </div>
+                </div>
                 <div className="space-y-4">
                   {weeklyBestPerformers
                     .filter(wbp => wbp.batchId === selectedBatchId)
@@ -692,7 +895,7 @@ export default function PointSystemPage() {
                     .map((wbp) => (
                       <div key={wbp.id} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
                         <div className="flex items-center justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-lg font-bold text-purple-900">🏆 {wbp.bestPerformer.studentName}</span>
                               <span className="text-sm text-purple-600">Week {wbp.weekNumber}</span>
@@ -706,9 +909,18 @@ export default function PointSystemPage() {
                               Lost: -{wbp.bestPerformer.pointsLost}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-purple-900">{wbp.bestPerformer.finalPoints}</div>
-                            <div className="text-sm text-purple-600">points</div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-purple-900">{wbp.bestPerformer.finalPoints}</div>
+                              <div className="text-sm text-purple-600">points</div>
+                            </div>
+                            <Button
+                              variant="danger"
+                              onClick={() => showDeleteConfirmation(wbp)}
+                              className="px-3 py-1 text-sm"
+                            >
+                              🗑️ Delete
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -729,6 +941,146 @@ export default function PointSystemPage() {
             setTimeout(() => setSuccess(''), 3000);
           }}
         />
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && performerToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <span className="text-red-600 text-xl">⚠️</span>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Delete Weekly Best Performer</h3>
+                    <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <p className="text-gray-700 mb-2">
+                    Are you sure you want to delete the weekly best performer record for:
+                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="font-semibold text-gray-900">
+                      🏆 {performerToDelete.bestPerformer.studentName}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Week {performerToDelete.weekNumber} ({performerToDelete.weekStartDate} - {performerToDelete.weekEndDate})
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Final Points: {performerToDelete.bestPerformer.finalPoints}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    variant="secondary"
+                    onClick={cancelDelete}
+                    className="px-4 py-2"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={deleteWeeklyBestPerformer}
+                    className="px-4 py-2"
+                  >
+                    🗑️ Delete Record
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manual Weekly Best Performer Modal */}
+        {showManualPerformerModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <span className="text-purple-600 text-xl">🏆</span>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Set Weekly Best Performer</h3>
+                    <p className="text-sm text-gray-500">Manually set the best performer for a specific week.</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Week
+                    </label>
+                    <select
+                      value={selectedWeek}
+                      onChange={(e) => setSelectedWeek(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      required
+                    >
+                      <option value="">Choose a week...</option>
+                      <option value="1">Week 1</option>
+                      <option value="2">Week 2</option>
+                      <option value="3">Week 3</option>
+                      <option value="4">Week 4</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Student
+                    </label>
+                    <select
+                      value={selectedStudentForPerformer}
+                      onChange={(e) => setSelectedStudentForPerformer(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      required
+                    >
+                      <option value="">Choose a student...</option>
+                      {students.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {student.name} ({student.points || 100} points)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> This will create a weekly best performer record for the selected week and student. 
+                      The system will calculate points earned/lost based on the point update history for that week.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <Button
+                    variant="secondary"
+                    onClick={cancelManualPerformer}
+                    className="px-4 py-2"
+                    disabled={isSavingManualPerformer}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveManualWeeklyBestPerformer}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={!selectedWeek || !selectedStudentForPerformer || isSavingManualPerformer}
+                  >
+                    {isSavingManualPerformer ? 'Saving...' : '🏆 Set Best Performer'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

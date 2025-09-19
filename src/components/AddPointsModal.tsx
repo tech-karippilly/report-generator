@@ -154,17 +154,16 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
         students: updatedStudents
       });
 
-      setSuccess(`Points updated successfully! Total change: ${totalPointsChange >= 0 ? '+' : ''}${totalPointsChange}`);
+      setSuccess(`Points updated successfully for ${selectedStudent.name}! Total change: ${totalPointsChange >= 0 ? '+' : ''}${totalPointsChange}. You can now select another student or close the modal.`);
       onPointsUpdated();
       
-      // Reset form
+      // Reset form for next student (don't close modal)
       setPointEntries([]);
       setSelectedStudentId('');
 
       setTimeout(() => {
         setSuccess('');
-        onClose();
-      }, 3000);
+      }, 5000);
 
     } catch (error) {
       console.error('Error updating points:', error);
@@ -185,7 +184,7 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -364,20 +363,25 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
-          <Button
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || !selectedBatchId || !selectedStudentId || pointEntries.length === 0}
-          >
-            {isSaving ? 'Saving...' : 'Save Points'}
-          </Button>
+        <div className="p-6 border-t border-gray-200 flex justify-between">
+          <div className="text-sm text-gray-500">
+            💡 Tip: After saving points for one student, you can select another student to continue adding points.
+          </div>
+          <div className="flex space-x-3">
+            <Button
+              variant="secondary"
+              onClick={handleClose}
+              disabled={isSaving}
+            >
+              Close Modal
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || !selectedBatchId || !selectedStudentId || pointEntries.length === 0}
+            >
+              {isSaving ? 'Saving...' : 'Save Points'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

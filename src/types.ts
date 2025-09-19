@@ -48,6 +48,7 @@ export interface SessionReport {
   id: string;
   batchId: string;
   batchCode: string;
+  groupName?: string;
   dateISO: string; // yyyy-mm-dd
   activityTitle: string; // e.g., "Today's Activity – Roleplay"
   activityDescription?: string;

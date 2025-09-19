@@ -25,6 +25,7 @@ function newId(): string {
 export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
   const [batchName, setBatchName] = useState('');
   const [groupName, setGroupName] = useState('');
+  const [customGroupName, setCustomGroupName] = useState('');
   const [sessionLink, setSessionLink] = useState('');
   const [trainers, setTrainers] = useState<Person[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -71,6 +72,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
     if (batch) {
       setBatchName(batch.code);
       setGroupName(batch.groupName || '');
+      setCustomGroupName('');
       setSessionLink(batch.defaultMeetUrl || '');
       setTrainers(batch.trainers || []);
       setStudents(batch.students || []);
@@ -81,6 +83,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
       // Reset form for new batch
       setBatchName('');
       setGroupName('');
+      setCustomGroupName('');
       setSessionLink('');
       setTrainers([]);
       setStudents([]);
@@ -127,9 +130,10 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
 
       if (batch) {
         // Update existing batch
+        const finalGroupName = groupName === "Custom" ? customGroupName.trim() : groupName.trim();
         const payload: any = {
           code: batchName.trim(),
-          groupName: groupName.trim() || undefined,
+          groupName: finalGroupName || undefined,
           trainers: cleanPeople(trainers),
           coordinators: cleanPeople(coordinators),
           students: cleanPeople(students),
@@ -144,9 +148,10 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
         setAlertMsg("Batch updated successfully.");
       } else {
         // Create new batch
+        const finalGroupName = groupName === "Custom" ? customGroupName.trim() : groupName.trim();
         await addDoc(collection(db, "batches"), clean({
           code: batchName.trim(),
-          groupName: groupName.trim() || undefined,
+          groupName: finalGroupName || undefined,
           defaultMeetUrl: sessionLink.trim() || undefined,
           trainers: cleanPeople(trainers),
           coordinators: cleanPeople(coordinators),
@@ -176,6 +181,8 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
             const emailCredentials: StudentLoginCredentials[] = [];
             const loginUrl = `https://report-generator-4a753.web.app/login`;
             
+            const finalGroupName = groupName === "Custom" ? customGroupName.trim() : groupName.trim();
+            
             for (const student of studentsToEmail) {
               const tempPassword = generateTempPassword();
               
@@ -188,7 +195,7 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
                   email: student.email,
                   tempPassword,
                   batchCode: batchName.trim(),
-                  groupName: groupName.trim() || undefined,
+                  groupName: finalGroupName || undefined,
                   loginUrl
                 });
               } else {
@@ -398,12 +405,49 @@ export default function BatchForm({ batch, onSave, onCancel }: BatchFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Group Name
             </label>
-            <input
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="e.g., Advanced Group"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="space-y-2">
+              <select
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a group...</option>
+                <option value="Group 1">Group 1</option>
+                <option value="Group 2">Group 2</option>
+                <option value="Group 3">Group 3</option>
+                <option value="Group 4">Group 4</option>
+                <option value="Group 5">Group 5</option>
+                <option value="Group 6">Group 6</option>
+                <option value="Group 7">Group 7</option>
+                <option value="Group 8">Group 8</option>
+                <option value="Group 9">Group 9</option>
+                <option value="Group 10">Group 10</option>
+                <option value="Advanced Group">Advanced Group</option>
+                <option value="Beginner Group">Beginner Group</option>
+                <option value="Intermediate Group">Intermediate Group</option>
+                <option value="Expert Group">Expert Group</option>
+                <option value="Morning Group">Morning Group</option>
+                <option value="Evening Group">Evening Group</option>
+                <option value="Weekend Group">Weekend Group</option>
+                <option value="Custom">Custom (enter below)</option>
+              </select>
+              {groupName === "Custom" && (
+                <input
+                  value={customGroupName}
+                  onChange={(e) => setCustomGroupName(e.target.value)}
+                  placeholder="Enter custom group name..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              )}
+              {groupName && groupName !== "Custom" && (
+                <input
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Or enter custom group name..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              )}
+            </div>
           </div>
         </div>
 

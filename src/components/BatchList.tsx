@@ -77,18 +77,20 @@ export default function BatchList({ onEdit, onCreateNew }: BatchListProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Batch List</h2>
-        <Button variant="primary" onClick={onCreateNew}>
-          Create New Batch
-        </Button>
-      </div>
+    <div className="min-h-screen w-full bg-gray-50 p-4">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-900">Batch List</h2>
+            <Button variant="primary" onClick={onCreateNew}>
+              Create New Batch
+            </Button>
+          </div>
 
-      {error && <Alert tone="error">{error}</Alert>}
+          {error && <Alert tone="error">{error}</Alert>}
 
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+          <div className="bg-white rounded-lg shadow-sm">
+        <div className="p-4 border-b border-gray-200" style={{ borderBottomWidth: '0.5px' }}>
           <input
             type="text"
             placeholder="Search batches..."
@@ -178,7 +180,7 @@ export default function BatchList({ onEdit, onCreateNew }: BatchListProps) {
         )}
 
         {totalPages > 1 && (
-          <div className="px-6 py-3 border-t bg-gray-50 flex items-center justify-between">
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between" style={{ borderTopWidth: '0.5px' }}>
             <div className="text-sm text-gray-700">
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredBatches.length)} of {filteredBatches.length} batches
             </div>
@@ -205,6 +207,8 @@ export default function BatchList({ onEdit, onCreateNew }: BatchListProps) {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

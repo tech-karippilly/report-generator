@@ -51,7 +51,7 @@ export function buildDailySessionText(input: DailySessionInput): string {
   lines.push("");
   lines.push(`Meet Link:- ${input.meetUrl}`);
   lines.push("");
-  lines.push(`Communication Session ${input.batch.code}`);
+  lines.push(`Communication Session ${input.batch.code}${input.batch.groupName ? ` - ${input.batch.groupName}` : ''}`);
   lines.push("");
   lines.push(`Trainer:${trainerNames}`);
   lines.push(`----------------------------`);

@@ -8,17 +8,17 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 function variantClasses(variant: Variant, disabled?: boolean): string {
   const base = "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
-  if (disabled) return base;
+  if (disabled) return `${base} !text-gray-500`;
   switch (variant) {
     case "primary":
-      return `${base} text-white bg-blue-600 hover:bg-blue-700`;
+      return `${base} !text-white bg-blue-600 hover:bg-blue-700 hover:!text-white`;
     case "secondary":
-      return `${base} text-gray-800 border border-gray-300 bg-white hover:bg-gray-50`;
+      return `${base} !text-gray-800 border border-gray-300 bg-white hover:bg-gray-50 hover:!text-gray-800`;
     case "danger":
-      return `${base} text-white bg-red-600 hover:bg-red-700`;
+      return `${base} !text-white bg-red-600 hover:bg-red-700 hover:!text-white`;
     case "ghost":
     default:
-      return `${base} text-gray-700 hover:bg-gray-100`;
+      return `${base} !text-gray-700 hover:bg-gray-100 hover:!text-gray-700`;
   }
 }
 
