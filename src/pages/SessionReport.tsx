@@ -356,16 +356,21 @@ export default function SessionReportPage() {
 
   // Improved student matching function
   const findMatchingStudent = (csvName: string, students: any[], batchCode?: string) => {
+    console.log(`\n--- MATCHING STUDENT ---`);
+    console.log(`CSV Name: "${csvName}"`);
+    console.log(`Batch Code: "${batchCode}"`);
+    
     // First, try to remove batch code from CSV name
     let cleanCsvName = csvName;
     if (batchCode) {
       // Remove batch code from the end of the name
       const batchCodePattern = new RegExp(`\\s+${batchCode}\\s*$`, 'i');
       cleanCsvName = cleanCsvName.replace(batchCodePattern, '').trim();
-
+      console.log(`After removing batch code: "${cleanCsvName}"`);
     }
     
     const normalizedCsvName = normalizeName(cleanCsvName);
+    console.log(`Normalized CSV name: "${normalizedCsvName}"`);
     
     // Try exact match first
     let match = students.find(student => 
@@ -373,21 +378,28 @@ export default function SessionReportPage() {
     );
     
     if (match) {
-
+      console.log(`✅ EXACT MATCH: "${csvName}" -> "${match.name}"`);
       return match;
     }
 
     // Try partial matching (first name + last name)
     const csvParts = normalizedCsvName.split(/\s+/);
+    console.log(`CSV parts: [${csvParts.join(', ')}]`);
+    
     if (csvParts.length >= 2) {
       match = students.find(student => {
         const studentParts = normalizeName(student.name).split(/\s+/);
+        console.log(`  Checking student: "${student.name}" -> parts: [${studentParts.join(', ')}]`);
+        
         if (studentParts.length >= 2) {
           // Check if first and last names match
           const firstNameMatch = csvParts[0] === studentParts[0];
           const lastNameMatch = csvParts[csvParts.length - 1] === studentParts[studentParts.length - 1];
+          console.log(`    First name match: "${csvParts[0]}" === "${studentParts[0]}" = ${firstNameMatch}`);
+          console.log(`    Last name match: "${csvParts[csvParts.length - 1]}" === "${studentParts[studentParts.length - 1]}" = ${lastNameMatch}`);
+          
           if (firstNameMatch && lastNameMatch) {
-
+            console.log(`✅ PARTIAL MATCH: "${csvName}" -> "${student.name}"`);
             return true;
           }
         }
@@ -400,28 +412,35 @@ export default function SessionReportPage() {
     // Try reverse order matching (last, first)
     if (csvParts.length >= 2) {
       const reversedName = `${csvParts[csvParts.length - 1]} ${csvParts[0]}`;
+      console.log(`Trying reverse order: "${reversedName}"`);
+      
       match = students.find(student => {
         const studentNormalized = normalizeName(student.name);
+        console.log(`  Checking reverse: "${studentNormalized}" === "${reversedName}"`);
         if (studentNormalized === reversedName) {
-
+          console.log(`✅ REVERSE MATCH: "${csvName}" -> "${student.name}"`);
           return true;
         }
         return false;
       });
     }
     
+    if (match) return match;
+    
     // Try matching without middle names/initials
     if (csvParts.length > 2) {
       const firstName = csvParts[0];
       const lastName = csvParts[csvParts.length - 1];
       const simplifiedName = `${firstName} ${lastName}`;
+      console.log(`Trying simplified: "${simplifiedName}"`);
       
       match = students.find(student => {
         const studentParts = normalizeName(student.name).split(/\s+/);
         if (studentParts.length >= 2) {
           const studentSimplified = `${studentParts[0]} ${studentParts[studentParts.length - 1]}`;
+          console.log(`  Checking simplified: "${studentSimplified}" === "${simplifiedName}"`);
           if (studentSimplified === simplifiedName) {
-   
+            console.log(`✅ SIMPLIFIED MATCH: "${csvName}" -> "${student.name}"`);
             return true;
           }
         }
@@ -429,6 +448,7 @@ export default function SessionReportPage() {
       });
     }
     
+    console.log(`❌ NO MATCH FOUND for: "${csvName}"`);
     return match;
   };
 
