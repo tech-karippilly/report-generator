@@ -209,6 +209,15 @@ export default function SessionReportPage() {
           const data = results.data as any[];
           setCsvData(data);
           
+          // Comprehensive CSV data logging
+          console.log('=== CSV FILE PROCESSING ===');
+          console.log('File name:', meetListFile.name);
+          console.log('File size:', (meetListFile.size / 1024).toFixed(2), 'KB');
+          console.log('Total rows:', data.length);
+          console.log('CSV columns:', Object.keys(data[0] || {}));
+          console.log('Raw CSV data:', data);
+          console.log('==========================');
+          
           // Process attendance based on CSV data
           const processedAttendance = processAttendanceFromCsv(data, selectedBatch);
           
@@ -259,10 +268,17 @@ export default function SessionReportPage() {
     const attendanceEndTime = new Date();
     attendanceEndTime.setHours(10, 10, 0, 0);
 
-    console.log('Processing CSV data:', csvData);
+    console.log('=== ATTENDANCE PROCESSING ===');
+    console.log('CSV data to process:', csvData);
     console.log('Batch students:', batch.students.map(s => s.name));
+    console.log('Batch code:', batch.code);
+    console.log('Attendance window: 10:00 AM - 10:10 AM');
+    console.log('================================');
 
-    csvData.forEach((row) => {
+    csvData.forEach((row, index) => {
+      console.log(`--- Processing Row ${index + 1} ---`);
+      console.log('Row data:', row);
+      console.log('Available columns:', Object.keys(row));
       // Try multiple column name variations for name
       const fullName = row['Full Name'] || 
                       row['full_name'] || 
@@ -291,9 +307,13 @@ export default function SessionReportPage() {
         firstSeen = row['__parsed_extra'][0] || '';
       }
       
+      console.log('Extracted name:', `"${fullName}"`);
+      console.log('Extracted time:', `"${firstSeen}"`);
+      
       if (!fullName) {
-        console.log('Skipping row with no name:', row);
+        console.log('❌ Skipping row with no name');
         console.log('Available columns:', Object.keys(row));
+        console.log('---------------------');
         return;
       }
 
@@ -304,11 +324,12 @@ export default function SessionReportPage() {
           normalizedName.includes('ai') ||
           normalizedName.includes('bot') ||
           normalizedName.includes('system')) {
-        console.log(`Skipping non-student entry: "${fullName}"`);
+        console.log(`❌ Skipping non-student entry: "${fullName}"`);
+        console.log('---------------------');
         return;
       }
 
-      console.log(`Processing: "${fullName}" with first seen: "${firstSeen}"`);
+      console.log(`✅ Processing: "${fullName}" with first seen: "${firstSeen}"`);
 
       // Find matching student in batch with improved matching
       const matchingStudent = findMatchingStudent(fullName, batch.students, batch.code);
@@ -337,16 +358,18 @@ export default function SessionReportPage() {
         }
       } else {
         unmatchedNames.push(fullName);
-        console.log(`No match found for: "${fullName}"`);
+        console.log(`❌ No match found for: "${fullName}"`);
       }
+      
+      console.log('---------------------');
     });
 
-    console.log('Final results:', {
-      present: presentIds.length,
-      late: anotherSessionIds.length,
-      unmatched: unmatchedNames.length,
-      unmatchedNames
-    });
+    console.log('=== FINAL RESULTS ===');
+    console.log('Present students:', presentIds.length);
+    console.log('Late arrivals:', anotherSessionIds.length);
+    console.log('Unmatched names:', unmatchedNames.length);
+    console.log('Unmatched names list:', unmatchedNames);
+    console.log('====================');
 
     return { presentIds, anotherSessionIds, unmatchedNames };
   };
