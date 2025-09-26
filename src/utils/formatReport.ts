@@ -35,7 +35,9 @@ export function buildWhatsappReportText(batch: Batch, report: SessionReport): st
   report.coordinators.forEach((c, i) => lines.push(`${i + 1}.\t${c.name}`));
   lines.push(` ---------------------------------`);
   if (report.tldvUrl) lines.push(`📌 Tldv link: ${report.tldvUrl}`);
-  if (report.meetUrl) lines.push(`🔗 Session Link:${report.meetUrl}`);
+  if (report.meetUrl) lines.push(`🔗 Session Link: ${report.meetUrl}`);
+  if (report.meetListUrl) lines.push(`📋 Meet List Link: ${report.meetListUrl}`);
+  if (report.meetListFile) lines.push(`📄 Meet List File: ${report.meetListFile}`);
   lines.push("");
   lines.push(` 📝 Report:`);
   lines.push("");

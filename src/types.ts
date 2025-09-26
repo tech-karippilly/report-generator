@@ -61,6 +61,8 @@ export interface SessionReport {
   coordinators: Person[];
   tldvUrl?: string;
   meetUrl?: string;
+  meetListUrl?: string; // Link to meet list
+  meetListFile?: string; // URL to uploaded Excel file
   reportedBy: string; // free text
   createdAt: number;
 }

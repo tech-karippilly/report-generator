@@ -25,6 +25,8 @@ export default function SessionReportPage() {
   const [activityDescription, setActivityDescription] = useState<string>("");
   const [tldvUrl, setTldvUrl] = useState<string>("");
   const [meetUrl, setMeetUrl] = useState<string>("");
+  const [meetListUrl, setMeetListUrl] = useState<string>("");
+  const [meetListFile, setMeetListFile] = useState<File | null>(null);
   const [reportedBy, setReportedBy] = useState<string>("");
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [anotherSessionIds, setAnotherSessionIds] = useState<string[]>([]);
@@ -152,6 +154,41 @@ export default function SessionReportPage() {
     setCombinedSessionStudents(prev => prev.filter(student => student.id !== id));
   };
 
+  // Handle meet list file upload
+  const handleMeetListFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check if it's a CSV file
+      const allowedTypes = [
+        'text/csv',
+        'application/csv',
+        'text/plain'
+      ];
+      
+      // Also check file extension as fallback
+      const fileName = file.name.toLowerCase();
+      const isCsvFile = allowedTypes.includes(file.type) || fileName.endsWith('.csv');
+      
+      if (isCsvFile) {
+        setMeetListFile(file);
+        setAlertMsg(`Meet list file "${file.name}" selected successfully.`);
+        setAlertTone("success");
+        setTimeout(() => setAlertMsg(""), 3000);
+      } else {
+        setAlertMsg("Please select a valid CSV file (.csv)");
+        setAlertTone("error");
+        setTimeout(() => setAlertMsg(""), 3000);
+      }
+    }
+  };
+
+  const removeMeetListFile = () => {
+    setMeetListFile(null);
+    // Reset the file input
+    const fileInput = document.getElementById('meetListFile') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
   // WhatsApp helper functions
   const openWhatsApp = (text: string) => {
     const encodedText = encodeURIComponent(text);
@@ -201,6 +238,8 @@ export default function SessionReportPage() {
         coordinators: selectedBatch.coordinators,
         tldvUrl: tldvUrl.trim() || undefined,
         meetUrl: meetUrl.trim() || undefined,
+        meetListUrl: meetListUrl.trim() || undefined,
+        meetListFile: meetListFile ? meetListFile.name : undefined, // Store filename for now
         reportedBy: reportedBy.trim() || (selectedBatch.coordinators[0]?.name ?? ""),
         createdAt: Date.now(),
       };
@@ -382,6 +421,53 @@ export default function SessionReportPage() {
                     placeholder="https://tldv.io/..."
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+
+                {/* Meet List Link */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meet List Link
+                  </label>
+                  <input 
+                    value={meetListUrl} 
+                    onChange={(e) => setMeetListUrl(e.target.value)} 
+                    placeholder="https://docs.google.com/spreadsheets/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Meet List File Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meet List File (CSV)
+                  </label>
+                  <div className="space-y-3">
+                    <input
+                      id="meetListFile"
+                      type="file"
+                      accept=".csv"
+                      onChange={handleMeetListFileUpload}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {meetListFile && (
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-green-600">📄</span>
+                          <span className="text-sm font-medium text-green-800">{meetListFile.name}</span>
+                          <span className="text-xs text-green-600">
+                            ({(meetListFile.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeMeetListFile}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Reported By */}
