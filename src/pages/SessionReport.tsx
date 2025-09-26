@@ -263,11 +263,37 @@ export default function SessionReportPage() {
     console.log('Batch students:', batch.students.map(s => s.name));
 
     csvData.forEach((row) => {
-      const fullName = row['Full Name'] || row['full_name'] || row['FullName'] || row['Name'] || row['name'] || '';
-      const firstSeen = row['First Seen'] || row['first_seen'] || row['FirstSeen'] || row['Join Time'] || row['join_time'] || '';
+      // Try multiple column name variations for name
+      const fullName = row['Full Name'] || 
+                      row['full_name'] || 
+                      row['FullName'] || 
+                      row['Name'] || 
+                      row['name'] || 
+                      row['Meet'] || 
+                      row['meet'] || 
+                      row['Participant'] || 
+                      row['participant'] || 
+                      '';
+      
+      // Try multiple column name variations for time
+      let firstSeen = row['First Seen'] || 
+                     row['first_seen'] || 
+                     row['FirstSeen'] || 
+                     row['Join Time'] || 
+                     row['join_time'] || 
+                     row['Time'] || 
+                     row['time'] || 
+                     '';
+      
+      // If no time found in named columns, check __parsed_extra array
+      if (!firstSeen && row['__parsed_extra'] && Array.isArray(row['__parsed_extra'])) {
+        // Usually the first element in __parsed_extra is the time
+        firstSeen = row['__parsed_extra'][0] || '';
+      }
       
       if (!fullName) {
         console.log('Skipping row with no name:', row);
+        console.log('Available columns:', Object.keys(row));
         return;
       }
 
@@ -751,9 +777,43 @@ export default function SessionReportPage() {
                                 </div>
                                 {csvData.length > 0 && (
                                   <div className="text-gray-600">
-                                    <strong>Sample row:</strong> {JSON.stringify(csvData[0], null, 2)}
+                                    <strong>Sample row:</strong> 
+                                    <pre className="mt-1 text-xs bg-white p-2 rounded border overflow-auto max-h-32">
+                                      {JSON.stringify(csvData[0], null, 2)}
+                                    </pre>
                                   </div>
                                 )}
+                                <div className="text-gray-600">
+                                  <strong>Detected name column:</strong> {
+                                    csvData[0] ? (
+                                      csvData[0]['Full Name'] ? 'Full Name' :
+                                      csvData[0]['full_name'] ? 'full_name' :
+                                      csvData[0]['FullName'] ? 'FullName' :
+                                      csvData[0]['Name'] ? 'Name' :
+                                      csvData[0]['name'] ? 'name' :
+                                      csvData[0]['Meet'] ? 'Meet' :
+                                      csvData[0]['meet'] ? 'meet' :
+                                      csvData[0]['Participant'] ? 'Participant' :
+                                      csvData[0]['participant'] ? 'participant' :
+                                      'None found'
+                                    ) : 'No data'
+                                  }
+                                </div>
+                                <div className="text-gray-600">
+                                  <strong>Detected time column:</strong> {
+                                    csvData[0] ? (
+                                      csvData[0]['First Seen'] ? 'First Seen' :
+                                      csvData[0]['first_seen'] ? 'first_seen' :
+                                      csvData[0]['FirstSeen'] ? 'FirstSeen' :
+                                      csvData[0]['Join Time'] ? 'Join Time' :
+                                      csvData[0]['join_time'] ? 'join_time' :
+                                      csvData[0]['Time'] ? 'Time' :
+                                      csvData[0]['time'] ? 'time' :
+                                      csvData[0]['__parsed_extra'] ? '__parsed_extra[0]' :
+                                      'None found'
+                                    ) : 'No data'
+                                  }
+                                </div>
                                 <div className="text-gray-600">
                                   <strong>Batch students:</strong> {selectedBatch?.students.map(s => s.name).join(', ')}
                                 </div>
