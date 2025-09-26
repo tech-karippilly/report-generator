@@ -271,10 +271,21 @@ export default function SessionReportPage() {
         return;
       }
 
+      // Filter out AI Notetaker and other non-student entries
+      const normalizedName = fullName.toLowerCase().trim();
+      if (normalizedName.includes('ai notetaker') || 
+          normalizedName.includes('notetaker') ||
+          normalizedName.includes('ai') ||
+          normalizedName.includes('bot') ||
+          normalizedName.includes('system')) {
+        console.log(`Skipping non-student entry: "${fullName}"`);
+        return;
+      }
+
       console.log(`Processing: "${fullName}" with first seen: "${firstSeen}"`);
 
       // Find matching student in batch with improved matching
-      const matchingStudent = findMatchingStudent(fullName, batch.students);
+      const matchingStudent = findMatchingStudent(fullName, batch.students, batch.code);
 
       if (matchingStudent) {
         console.log(`Found match: "${fullName}" -> "${matchingStudent.name}"`);
@@ -315,15 +326,27 @@ export default function SessionReportPage() {
   };
 
   // Improved student matching function
-  const findMatchingStudent = (csvName: string, students: any[]) => {
-    const normalizedCsvName = normalizeName(csvName);
+  const findMatchingStudent = (csvName: string, students: any[], batchCode?: string) => {
+    // First, try to remove batch code from CSV name
+    let cleanCsvName = csvName;
+    if (batchCode) {
+      // Remove batch code from the end of the name
+      const batchCodePattern = new RegExp(`\\s+${batchCode}\\s*$`, 'i');
+      cleanCsvName = cleanCsvName.replace(batchCodePattern, '').trim();
+      console.log(`Removed batch code "${batchCode}": "${csvName}" -> "${cleanCsvName}"`);
+    }
+    
+    const normalizedCsvName = normalizeName(cleanCsvName);
     
     // Try exact match first
     let match = students.find(student => 
       normalizeName(student.name) === normalizedCsvName
     );
     
-    if (match) return match;
+    if (match) {
+      console.log(`Exact match found: "${cleanCsvName}" -> "${match.name}"`);
+      return match;
+    }
 
     // Try partial matching (first name + last name)
     const csvParts = normalizedCsvName.split(/\s+/);
@@ -334,7 +357,10 @@ export default function SessionReportPage() {
           // Check if first and last names match
           const firstNameMatch = csvParts[0] === studentParts[0];
           const lastNameMatch = csvParts[csvParts.length - 1] === studentParts[studentParts.length - 1];
-          return firstNameMatch && lastNameMatch;
+          if (firstNameMatch && lastNameMatch) {
+            console.log(`Partial match found: "${cleanCsvName}" -> "${student.name}"`);
+            return true;
+          }
         }
         return false;
       });
@@ -345,9 +371,33 @@ export default function SessionReportPage() {
     // Try reverse order matching (last, first)
     if (csvParts.length >= 2) {
       const reversedName = `${csvParts[csvParts.length - 1]} ${csvParts[0]}`;
-      match = students.find(student => 
-        normalizeName(student.name) === reversedName
-      );
+      match = students.find(student => {
+        const studentNormalized = normalizeName(student.name);
+        if (studentNormalized === reversedName) {
+          console.log(`Reverse order match found: "${cleanCsvName}" -> "${student.name}"`);
+          return true;
+        }
+        return false;
+      });
+    }
+    
+    // Try matching without middle names/initials
+    if (csvParts.length > 2) {
+      const firstName = csvParts[0];
+      const lastName = csvParts[csvParts.length - 1];
+      const simplifiedName = `${firstName} ${lastName}`;
+      
+      match = students.find(student => {
+        const studentParts = normalizeName(student.name).split(/\s+/);
+        if (studentParts.length >= 2) {
+          const studentSimplified = `${studentParts[0]} ${studentParts[studentParts.length - 1]}`;
+          if (studentSimplified === simplifiedName) {
+            console.log(`Simplified match found: "${cleanCsvName}" -> "${student.name}"`);
+            return true;
+          }
+        }
+        return false;
+      });
     }
     
     return match;
