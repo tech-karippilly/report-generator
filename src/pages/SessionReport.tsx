@@ -195,18 +195,47 @@ export default function SessionReportPage() {
 
   // Parse meeting data with proper CSV handling
   const parseMeetingData = (csvString: string) => {
-    const results = Papa.parse(csvString, {
+    // Split the CSV into lines
+    const lines = csvString.split('\n').map(line => line.trim()).filter(line => line !== '');
+  
+    // Find the index of the header row ("Full Name","First Seen","Time in Call")
+    const headerIndex = lines.findIndex(line => line.startsWith('"Full Name","First Seen","Time in Call"'));
+  
+    // Extract metadata (lines before the header)
+    const metadata: { [key: string]: string } = {};
+    for (let i = 0; i < headerIndex; i++) {
+      const match = lines[i].match(/"\* Meet","(.*)"/);
+      if (match && match[1]) {
+        metadata[match[1].trim()] = match[1].trim();
+      }
+    }
+  
+    // Extract data lines (header + participant rows)
+    const dataLines = lines.slice(headerIndex).join('\n');
+  
+    // Parse the tabular data
+    const results = Papa.parse(dataLines, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header: string) => header.trim().replace(/^"|"$/g, ''),
       transform: (value: string) => value.trim().replace(/^"|"$/g, '')
     });
+  
+    // Log parsing results for debugging
     
-    return results.data.map((row: any) => ({
+  
+    // Map the participant data
+    const participants = results.data.map((row: any) => ({
       fullName: row["Full Name"],
       firstSeen: row["First Seen"],
       timeInCall: row["Time in Call"]
     }));
+    console.log("participants:", participants);
+    // Return metadata and participants
+    return {
+      metadata,
+      participants
+    };
   };
 
   // Process CSV file and auto-mark attendance
@@ -227,14 +256,15 @@ export default function SessionReportPage() {
       console.log('=== PARSED MEETING DATA ===');
       console.log('File name:', meetListFile.name);
       console.log('File size:', (meetListFile.size / 1024).toFixed(2), 'KB');
-      console.log('Total records:', parsedData.length);
-      console.log('Parsed data:', parsedData);
+      console.log('Metadata:', parsedData.metadata);
+      console.log('Total participants:', parsedData.participants.length);
+      console.log('Participants:', parsedData.participants);
       console.log('===========================');
-
-      setCsvData(parsedData);
+      
+      setCsvData(parsedData.participants);
       
       // Process attendance based on parsed data
-      const processedAttendance = processAttendanceFromCsv(parsedData, selectedBatch);
+      const processedAttendance = processAttendanceFromCsv(parsedData.participants, selectedBatch);
       
       // Update attendance states
       setPresentIds(processedAttendance.presentIds);
@@ -252,7 +282,7 @@ export default function SessionReportPage() {
       setAlertMsg(message);
       setTimeout(() => setAlertMsg(""), 8000);
     } catch (error) {
-      console.error('Error processing CSV:', error);
+     
       setAlertMsg("Error processing CSV file. Please check the format.");
       setAlertTone("error");
       setTimeout(() => setAlertMsg(""), 5000);
@@ -285,11 +315,8 @@ export default function SessionReportPage() {
       console.log('First Seen:', firstSeen);
       console.log('Time in Call:', timeInCall);
       
-      
       if (!fullName) {
         console.log('❌ Skipping row with no name');
-        console.log('Available columns:', Object.keys(row));
-        console.log('---------------------');
         return;
       }
 
@@ -301,7 +328,6 @@ export default function SessionReportPage() {
           normalizedName.includes('bot') ||
           normalizedName.includes('system')) {
         console.log(`❌ Skipping non-student entry: "${fullName}"`);
-        console.log('---------------------');
         return;
       }
 
@@ -337,7 +363,7 @@ export default function SessionReportPage() {
         console.log(`❌ No match found for: "${fullName}"`);
       }
       
-      console.log('---------------------');
+
     });
 
     console.log('=== FINAL RESULTS ===');
@@ -358,7 +384,7 @@ export default function SessionReportPage() {
       // Remove batch code from the end of the name
       const batchCodePattern = new RegExp(`\\s+${batchCode}\\s*$`, 'i');
       cleanCsvName = cleanCsvName.replace(batchCodePattern, '').trim();
-      console.log(`Removed batch code "${batchCode}": "${csvName}" -> "${cleanCsvName}"`);
+
     }
     
     const normalizedCsvName = normalizeName(cleanCsvName);
@@ -369,7 +395,7 @@ export default function SessionReportPage() {
     );
     
     if (match) {
-      console.log(`Exact match found: "${cleanCsvName}" -> "${match.name}"`);
+
       return match;
     }
 
@@ -383,7 +409,7 @@ export default function SessionReportPage() {
           const firstNameMatch = csvParts[0] === studentParts[0];
           const lastNameMatch = csvParts[csvParts.length - 1] === studentParts[studentParts.length - 1];
           if (firstNameMatch && lastNameMatch) {
-            console.log(`Partial match found: "${cleanCsvName}" -> "${student.name}"`);
+
             return true;
           }
         }
@@ -399,7 +425,7 @@ export default function SessionReportPage() {
       match = students.find(student => {
         const studentNormalized = normalizeName(student.name);
         if (studentNormalized === reversedName) {
-          console.log(`Reverse order match found: "${cleanCsvName}" -> "${student.name}"`);
+
           return true;
         }
         return false;
@@ -417,7 +443,7 @@ export default function SessionReportPage() {
         if (studentParts.length >= 2) {
           const studentSimplified = `${studentParts[0]} ${studentParts[studentParts.length - 1]}`;
           if (studentSimplified === simplifiedName) {
-            console.log(`Simplified match found: "${cleanCsvName}" -> "${student.name}"`);
+   
             return true;
           }
         }
