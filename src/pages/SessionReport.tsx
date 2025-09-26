@@ -193,66 +193,72 @@ export default function SessionReportPage() {
     if (fileInput) fileInput.value = '';
   };
 
+  // Parse meeting data with proper CSV handling
+  const parseMeetingData = (csvString: string) => {
+    const results = Papa.parse(csvString, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header: string) => header.trim().replace(/^"|"$/g, ''),
+      transform: (value: string) => value.trim().replace(/^"|"$/g, '')
+    });
+    
+    return results.data.map((row: any) => ({
+      fullName: row["Full Name"],
+      firstSeen: row["First Seen"],
+      timeInCall: row["Time in Call"]
+    }));
+  };
+
   // Process CSV file and auto-mark attendance
-  const processCsvFile = () => {
+  const processCsvFile = async () => {
     if (!meetListFile || !selectedBatch) return;
 
     setIsProcessingCsv(true);
     setAlertMsg("Processing CSV file...");
     setAlertTone("info");
 
-    Papa.parse(meetListFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        try {
-          const data = results.data as any[];
-          setCsvData(data);
-          
-          // Comprehensive CSV data logging
-          console.log('=== CSV FILE PROCESSING ===');
-          console.log('File name:', meetListFile.name);
-          console.log('File size:', (meetListFile.size / 1024).toFixed(2), 'KB');
-          console.log('Total rows:', data.length);
-          console.log('CSV columns:', Object.keys(data[0] || {}));
-          console.log('Raw CSV data:', data);
-          console.log('==========================');
-          
-          // Process attendance based on CSV data
-          const processedAttendance = processAttendanceFromCsv(data, selectedBatch);
-          
-          // Update attendance states
-          setPresentIds(processedAttendance.presentIds);
-          setAnotherSessionIds(processedAttendance.anotherSessionIds);
-          
-          let message = `CSV processed successfully! Found ${processedAttendance.presentIds.length} present students and ${processedAttendance.anotherSessionIds.length} late arrivals.`;
-          
-          if (processedAttendance.unmatchedNames && processedAttendance.unmatchedNames.length > 0) {
-            message += ` ${processedAttendance.unmatchedNames.length} names couldn't be matched: ${processedAttendance.unmatchedNames.join(', ')}`;
-            setAlertTone("warning");
-          } else {
-            setAlertTone("success");
-          }
-          
-          setAlertMsg(message);
-          setTimeout(() => setAlertMsg(""), 8000);
-        } catch (error) {
-          console.error('Error processing CSV:', error);
-          setAlertMsg("Error processing CSV file. Please check the format.");
-          setAlertTone("error");
-          setTimeout(() => setAlertMsg(""), 5000);
-        } finally {
-          setIsProcessingCsv(false);
-        }
-      },
-      error: (error) => {
-        console.error('CSV parsing error:', error);
-        setAlertMsg("Error parsing CSV file. Please check the file format.");
-        setAlertTone("error");
-        setTimeout(() => setAlertMsg(""), 5000);
-        setIsProcessingCsv(false);
+    try {
+      const text = await meetListFile.text();
+      
+      // Parse CSV using the new function
+      const parsedData = parseMeetingData(text);
+      
+      // Console log the parsed response
+      console.log('=== PARSED MEETING DATA ===');
+      console.log('File name:', meetListFile.name);
+      console.log('File size:', (meetListFile.size / 1024).toFixed(2), 'KB');
+      console.log('Total records:', parsedData.length);
+      console.log('Parsed data:', parsedData);
+      console.log('===========================');
+
+      setCsvData(parsedData);
+      
+      // Process attendance based on parsed data
+      const processedAttendance = processAttendanceFromCsv(parsedData, selectedBatch);
+      
+      // Update attendance states
+      setPresentIds(processedAttendance.presentIds);
+      setAnotherSessionIds(processedAttendance.anotherSessionIds);
+      
+      let message = `CSV processed successfully! Found ${processedAttendance.presentIds.length} present students and ${processedAttendance.anotherSessionIds.length} late arrivals.`;
+      
+      if (processedAttendance.unmatchedNames && processedAttendance.unmatchedNames.length > 0) {
+        message += ` ${processedAttendance.unmatchedNames.length} names couldn't be matched: ${processedAttendance.unmatchedNames.join(', ')}`;
+        setAlertTone("warning");
+      } else {
+        setAlertTone("success");
       }
-    });
+      
+      setAlertMsg(message);
+      setTimeout(() => setAlertMsg(""), 8000);
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      setAlertMsg("Error processing CSV file. Please check the format.");
+      setAlertTone("error");
+      setTimeout(() => setAlertMsg(""), 5000);
+    } finally {
+      setIsProcessingCsv(false);
+    }
   };
 
   // Process attendance from CSV data
@@ -268,58 +274,17 @@ export default function SessionReportPage() {
     const attendanceEndTime = new Date();
     attendanceEndTime.setHours(10, 10, 0, 0);
 
-    console.log('=== ATTENDANCE PROCESSING ===');
-    console.log('CSV data to process:', csvData);
-    console.log('Batch students:', batch.students.map(s => s.name));
-    console.log('Batch code:', batch.code);
-    console.log('Attendance window: 10:00 AM - 10:10 AM');
-    console.log('================================');
-
-    csvData.forEach((row, index) => {
+    csvData.forEach((row, index) => {      
+      // Get name and time from parsed data structure
+      const fullName = row.fullName || '';
+      const firstSeen = row.firstSeen || '';
+      const timeInCall = row.timeInCall || '';
+      
       console.log(`--- Processing Row ${index + 1} ---`);
-      console.log('Row data:', row);
-      console.log('Available columns:', Object.keys(row));
+      console.log('Full Name:', fullName);
+      console.log('First Seen:', firstSeen);
+      console.log('Time in Call:', timeInCall);
       
-      // Get name from Meet field (primary source)
-      const fullName = row['Meet'] || row['meet'] || '';
-      
-      // Get join time from __parsed_extra[0] (join date and time)
-      let firstSeen = '';
-      if (row['__parsed_extra'] && Array.isArray(row['__parsed_extra']) && row['__parsed_extra'].length > 0) {
-        firstSeen = row['__parsed_extra'][0] || '';
-        console.log('__parsed_extra data:', row['__parsed_extra']);
-        console.log('Join time (__parsed_extra[0]):', firstSeen);
-        console.log('Time in meet (__parsed_extra[1]):', row['__parsed_extra'][1] || 'N/A');
-      }
-      
-      // Fallback to other column names if Meet field is empty
-      if (!fullName) {
-        const fallbackName = row['Full Name'] || 
-                            row['full_name'] || 
-                            row['FullName'] || 
-                            row['Name'] || 
-                            row['name'] || 
-                            row['Participant'] || 
-                            row['participant'] || 
-                            '';
-        console.log('Meet field empty, trying fallback:', fallbackName);
-      }
-      
-      // Fallback to other time columns if __parsed_extra is empty
-      if (!firstSeen) {
-        firstSeen = row['First Seen'] || 
-                   row['first_seen'] || 
-                   row['FirstSeen'] || 
-                   row['Join Time'] || 
-                   row['join_time'] || 
-                   row['Time'] || 
-                   row['time'] || 
-                   '';
-        console.log('__parsed_extra empty, trying fallback time:', firstSeen);
-      }
-      
-      console.log('Extracted name:', `"${fullName}"`);
-      console.log('Extracted time:', `"${firstSeen}"`);
       
       if (!fullName) {
         console.log('❌ Skipping row with no name');
