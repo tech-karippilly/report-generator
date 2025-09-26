@@ -34,6 +34,7 @@ export default function AddPointsModal({ isOpen, onClose, batches, onPointsUpdat
   // Predefined point categories
   const pointCategories = [
     { label: 'Late Attendance', points: -5, reason: 'Arrived late to class' },
+    { label: 'Attending Session on Time', points: 5, reason: 'Attended session on time' },
     { label: 'Active Participation', points: 10, reason: 'Actively participated in discussion' },
     { label: 'Excellent Answer', points: 15, reason: 'Gave excellent answer to question' },
     { label: 'Helping Others', points: 8, reason: 'Helped fellow students' },
