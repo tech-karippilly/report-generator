@@ -216,9 +216,17 @@ export default function SessionReportPage() {
           setPresentIds(processedAttendance.presentIds);
           setAnotherSessionIds(processedAttendance.anotherSessionIds);
           
-          setAlertMsg(`CSV processed successfully! Found ${processedAttendance.presentIds.length} present students and ${processedAttendance.anotherSessionIds.length} late arrivals.`);
-          setAlertTone("success");
-          setTimeout(() => setAlertMsg(""), 5000);
+          let message = `CSV processed successfully! Found ${processedAttendance.presentIds.length} present students and ${processedAttendance.anotherSessionIds.length} late arrivals.`;
+          
+          if (processedAttendance.unmatchedNames && processedAttendance.unmatchedNames.length > 0) {
+            message += ` ${processedAttendance.unmatchedNames.length} names couldn't be matched: ${processedAttendance.unmatchedNames.join(', ')}`;
+            setAlertTone("warning");
+          } else {
+            setAlertTone("success");
+          }
+          
+          setAlertMsg(message);
+          setTimeout(() => setAlertMsg(""), 8000);
         } catch (error) {
           console.error('Error processing CSV:', error);
           setAlertMsg("Error processing CSV file. Please check the format.");
@@ -242,6 +250,7 @@ export default function SessionReportPage() {
   const processAttendanceFromCsv = (csvData: any[], batch: Batch) => {
     const presentIds: string[] = [];
     const anotherSessionIds: string[] = [];
+    const unmatchedNames: string[] = [];
     
     // Define the attendance window (10:00 AM to 10:10 AM)
     const attendanceStartTime = new Date();
@@ -250,37 +259,108 @@ export default function SessionReportPage() {
     const attendanceEndTime = new Date();
     attendanceEndTime.setHours(10, 10, 0, 0);
 
-    csvData.forEach((row) => {
-      const fullName = row['Full Name'] || row['full_name'] || row['FullName'] || '';
-      const firstSeen = row['First Seen'] || row['first_seen'] || row['FirstSeen'] || '';
-      
-      if (!fullName || !firstSeen) return;
+    console.log('Processing CSV data:', csvData);
+    console.log('Batch students:', batch.students.map(s => s.name));
 
-      // Find matching student in batch
-      const matchingStudent = batch.students.find(student => 
-        student.name.toLowerCase().trim() === fullName.toLowerCase().trim()
-      );
+    csvData.forEach((row) => {
+      const fullName = row['Full Name'] || row['full_name'] || row['FullName'] || row['Name'] || row['name'] || '';
+      const firstSeen = row['First Seen'] || row['first_seen'] || row['FirstSeen'] || row['Join Time'] || row['join_time'] || '';
+      
+      if (!fullName) {
+        console.log('Skipping row with no name:', row);
+        return;
+      }
+
+      console.log(`Processing: "${fullName}" with first seen: "${firstSeen}"`);
+
+      // Find matching student in batch with improved matching
+      const matchingStudent = findMatchingStudent(fullName, batch.students);
 
       if (matchingStudent) {
+        console.log(`Found match: "${fullName}" -> "${matchingStudent.name}"`);
+        
         // Parse the first seen time
         const joinTime = parseJoinTime(firstSeen);
         
         if (joinTime) {
+          console.log(`Join time: ${joinTime.toLocaleString()}`);
           // Check if joined within attendance window (10:00-10:10 AM)
           if (joinTime >= attendanceStartTime && joinTime <= attendanceEndTime) {
             presentIds.push(matchingStudent.id);
+            console.log(`Marked as PRESENT: ${matchingStudent.name}`);
           } else {
             // Joined outside the window - mark as another session (late)
             anotherSessionIds.push(matchingStudent.id);
+            console.log(`Marked as LATE: ${matchingStudent.name}`);
           }
         } else {
           // Could not parse time - mark as present by default
           presentIds.push(matchingStudent.id);
+          console.log(`Marked as PRESENT (no time): ${matchingStudent.name}`);
         }
+      } else {
+        unmatchedNames.push(fullName);
+        console.log(`No match found for: "${fullName}"`);
       }
     });
 
-    return { presentIds, anotherSessionIds };
+    console.log('Final results:', {
+      present: presentIds.length,
+      late: anotherSessionIds.length,
+      unmatched: unmatchedNames.length,
+      unmatchedNames
+    });
+
+    return { presentIds, anotherSessionIds, unmatchedNames };
+  };
+
+  // Improved student matching function
+  const findMatchingStudent = (csvName: string, students: any[]) => {
+    const normalizedCsvName = normalizeName(csvName);
+    
+    // Try exact match first
+    let match = students.find(student => 
+      normalizeName(student.name) === normalizedCsvName
+    );
+    
+    if (match) return match;
+
+    // Try partial matching (first name + last name)
+    const csvParts = normalizedCsvName.split(/\s+/);
+    if (csvParts.length >= 2) {
+      match = students.find(student => {
+        const studentParts = normalizeName(student.name).split(/\s+/);
+        if (studentParts.length >= 2) {
+          // Check if first and last names match
+          const firstNameMatch = csvParts[0] === studentParts[0];
+          const lastNameMatch = csvParts[csvParts.length - 1] === studentParts[studentParts.length - 1];
+          return firstNameMatch && lastNameMatch;
+        }
+        return false;
+      });
+    }
+    
+    if (match) return match;
+
+    // Try reverse order matching (last, first)
+    if (csvParts.length >= 2) {
+      const reversedName = `${csvParts[csvParts.length - 1]} ${csvParts[0]}`;
+      match = students.find(student => 
+        normalizeName(student.name) === reversedName
+      );
+    }
+    
+    return match;
+  };
+
+  // Normalize name for better matching
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, '') // Remove special characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim();
   };
 
   // Parse join time from various formats
@@ -602,13 +682,33 @@ export default function SessionReportPage() {
                         )}
                         
                         {csvData.length > 0 && (
-                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="text-sm text-blue-800">
-                              <strong>CSV Processed:</strong> {csvData.length} records found
+                          <div className="space-y-2">
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="text-sm text-blue-800">
+                                <strong>CSV Processed:</strong> {csvData.length} records found
+                              </div>
+                              <div className="text-xs text-blue-600 mt-1">
+                                Present: {presentIds.length} | Late: {anotherSessionIds.length} | Absent: {selectedBatch ? selectedBatch.students.length - presentIds.length - anotherSessionIds.length : 0}
+                              </div>
                             </div>
-                            <div className="text-xs text-blue-600 mt-1">
-                              Present: {presentIds.length} | Late: {anotherSessionIds.length} | Absent: {selectedBatch ? selectedBatch.students.length - presentIds.length - anotherSessionIds.length : 0}
-                            </div>
+                            
+                            {/* Debug info - show CSV columns */}
+                            <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                              <summary className="cursor-pointer font-medium text-gray-700">Debug: CSV Columns & Sample Data</summary>
+                              <div className="mt-2 space-y-1">
+                                <div className="text-gray-600">
+                                  <strong>Available columns:</strong> {Object.keys(csvData[0] || {}).join(', ')}
+                                </div>
+                                {csvData.length > 0 && (
+                                  <div className="text-gray-600">
+                                    <strong>Sample row:</strong> {JSON.stringify(csvData[0], null, 2)}
+                                  </div>
+                                )}
+                                <div className="text-gray-600">
+                                  <strong>Batch students:</strong> {selectedBatch?.students.map(s => s.name).join(', ')}
+                                </div>
+                              </div>
+                            </details>
                           </div>
                         )}
                       </div>
