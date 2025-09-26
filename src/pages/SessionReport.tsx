@@ -6,6 +6,7 @@ import { buildWhatsappReportText } from "../utils/formatReport";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import Alert from "../components/Alert";
+import Papa from "papaparse";
 
 function todayISO(): string {
   const d = new Date();
@@ -27,6 +28,8 @@ export default function SessionReportPage() {
   const [meetUrl, setMeetUrl] = useState<string>("");
   const [meetListUrl, setMeetListUrl] = useState<string>("");
   const [meetListFile, setMeetListFile] = useState<File | null>(null);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [isProcessingCsv, setIsProcessingCsv] = useState(false);
   const [reportedBy, setReportedBy] = useState<string>("");
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [anotherSessionIds, setAnotherSessionIds] = useState<string[]>([]);
@@ -184,9 +187,123 @@ export default function SessionReportPage() {
 
   const removeMeetListFile = () => {
     setMeetListFile(null);
+    setCsvData([]);
     // Reset the file input
     const fileInput = document.getElementById('meetListFile') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  // Process CSV file and auto-mark attendance
+  const processCsvFile = () => {
+    if (!meetListFile || !selectedBatch) return;
+
+    setIsProcessingCsv(true);
+    setAlertMsg("Processing CSV file...");
+    setAlertTone("info");
+
+    Papa.parse(meetListFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        try {
+          const data = results.data as any[];
+          setCsvData(data);
+          
+          // Process attendance based on CSV data
+          const processedAttendance = processAttendanceFromCsv(data, selectedBatch);
+          
+          // Update attendance states
+          setPresentIds(processedAttendance.presentIds);
+          setAnotherSessionIds(processedAttendance.anotherSessionIds);
+          
+          setAlertMsg(`CSV processed successfully! Found ${processedAttendance.presentIds.length} present students and ${processedAttendance.anotherSessionIds.length} late arrivals.`);
+          setAlertTone("success");
+          setTimeout(() => setAlertMsg(""), 5000);
+        } catch (error) {
+          console.error('Error processing CSV:', error);
+          setAlertMsg("Error processing CSV file. Please check the format.");
+          setAlertTone("error");
+          setTimeout(() => setAlertMsg(""), 5000);
+        } finally {
+          setIsProcessingCsv(false);
+        }
+      },
+      error: (error) => {
+        console.error('CSV parsing error:', error);
+        setAlertMsg("Error parsing CSV file. Please check the file format.");
+        setAlertTone("error");
+        setTimeout(() => setAlertMsg(""), 5000);
+        setIsProcessingCsv(false);
+      }
+    });
+  };
+
+  // Process attendance from CSV data
+  const processAttendanceFromCsv = (csvData: any[], batch: Batch) => {
+    const presentIds: string[] = [];
+    const anotherSessionIds: string[] = [];
+    
+    // Define the attendance window (10:00 AM to 10:10 AM)
+    const attendanceStartTime = new Date();
+    attendanceStartTime.setHours(10, 0, 0, 0);
+    
+    const attendanceEndTime = new Date();
+    attendanceEndTime.setHours(10, 10, 0, 0);
+
+    csvData.forEach((row) => {
+      const fullName = row['Full Name'] || row['full_name'] || row['FullName'] || '';
+      const firstSeen = row['First Seen'] || row['first_seen'] || row['FirstSeen'] || '';
+      
+      if (!fullName || !firstSeen) return;
+
+      // Find matching student in batch
+      const matchingStudent = batch.students.find(student => 
+        student.name.toLowerCase().trim() === fullName.toLowerCase().trim()
+      );
+
+      if (matchingStudent) {
+        // Parse the first seen time
+        const joinTime = parseJoinTime(firstSeen);
+        
+        if (joinTime) {
+          // Check if joined within attendance window (10:00-10:10 AM)
+          if (joinTime >= attendanceStartTime && joinTime <= attendanceEndTime) {
+            presentIds.push(matchingStudent.id);
+          } else {
+            // Joined outside the window - mark as another session (late)
+            anotherSessionIds.push(matchingStudent.id);
+          }
+        } else {
+          // Could not parse time - mark as present by default
+          presentIds.push(matchingStudent.id);
+        }
+      }
+    });
+
+    return { presentIds, anotherSessionIds };
+  };
+
+  // Parse join time from various formats
+  const parseJoinTime = (timeString: string): Date | null => {
+    try {
+      // First try direct parsing
+      let date = new Date(timeString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+
+      // Try parsing with different separators
+      const cleanTime = timeString.replace(/[^\d\s:\-\/]/g, '');
+      date = new Date(cleanTime);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error parsing time:', timeString, error);
+      return null;
+    }
   };
 
   // WhatsApp helper functions
@@ -450,21 +567,50 @@ export default function SessionReportPage() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                     {meetListFile && (
-                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-green-600">📄</span>
-                          <span className="text-sm font-medium text-green-800">{meetListFile.name}</span>
-                          <span className="text-xs text-green-600">
-                            ({(meetListFile.size / 1024).toFixed(1)} KB)
-                          </span>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-green-600">📄</span>
+                            <span className="text-sm font-medium text-green-800">{meetListFile.name}</span>
+                            <span className="text-xs text-green-600">
+                              ({(meetListFile.size / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removeMeetListFile}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          >
+                            Remove
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={removeMeetListFile}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
+                        
+                        {selectedBatch && (
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={processCsvFile}
+                              disabled={isProcessingCsv}
+                              className="px-4 py-2 text-sm"
+                            >
+                              {isProcessingCsv ? 'Processing...' : 'Process CSV & Auto-Mark Attendance'}
+                            </Button>
+                            <div className="text-xs text-gray-500 flex items-center">
+                              <span className="mr-1">⏰</span>
+                              Attendance window: 10:00-10:10 AM
+                            </div>
+                          </div>
+                        )}
+                        
+                        {csvData.length > 0 && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="text-sm text-blue-800">
+                              <strong>CSV Processed:</strong> {csvData.length} records found
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              Present: {presentIds.length} | Late: {anotherSessionIds.length} | Absent: {selectedBatch ? selectedBatch.students.length - presentIds.length - anotherSessionIds.length : 0}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
