@@ -230,7 +230,7 @@ export default function SessionReportPage() {
       firstSeen: row["First Seen"],
       timeInCall: row["Time in Call"]
     }));
-    console.log("participants:", participants);
+    
     // Return metadata and participants
     return {
       metadata,
@@ -252,16 +252,18 @@ export default function SessionReportPage() {
       // Parse CSV using the new function
       const parsedData = parseMeetingData(text);
       
-      // Console log the parsed response
-      console.log('=== PARSED MEETING DATA ===');
-      console.log('File name:', meetListFile.name);
-      console.log('File size:', (meetListFile.size / 1024).toFixed(2), 'KB');
-      console.log('Metadata:', parsedData.metadata);
-      console.log('Total participants:', parsedData.participants.length);
+      // Console log participants list
+      console.log('=== PARTICIPANTS LIST ===');
       console.log('Participants:', parsedData.participants);
-      console.log('===========================');
+      console.log('========================');
       
       setCsvData(parsedData.participants);
+      
+      // Console log students list for selected batch
+      console.log('=== STUDENTS LIST FOR SELECTED BATCH ===');
+      console.log('Batch:', selectedBatch.code);
+      console.log('Students:', selectedBatch.students);
+      console.log('========================================');
       
       // Process attendance based on parsed data
       const processedAttendance = processAttendanceFromCsv(parsedData.participants, selectedBatch);
@@ -304,19 +306,12 @@ export default function SessionReportPage() {
     const attendanceEndTime = new Date();
     attendanceEndTime.setHours(10, 10, 0, 0);
 
-    csvData.forEach((row, index) => {      
+    csvData.forEach((row) => {      
       // Get name and time from parsed data structure
       const fullName = row.fullName || '';
       const firstSeen = row.firstSeen || '';
-      const timeInCall = row.timeInCall || '';
-      
-      console.log(`--- Processing Row ${index + 1} ---`);
-      console.log('Full Name:', fullName);
-      console.log('First Seen:', firstSeen);
-      console.log('Time in Call:', timeInCall);
       
       if (!fullName) {
-        console.log('❌ Skipping row with no name');
         return;
       }
 
@@ -327,51 +322,34 @@ export default function SessionReportPage() {
           normalizedName.includes('ai') ||
           normalizedName.includes('bot') ||
           normalizedName.includes('system')) {
-        console.log(`❌ Skipping non-student entry: "${fullName}"`);
         return;
       }
-
-      console.log(`✅ Processing: "${fullName}" with first seen: "${firstSeen}"`);
 
       // Find matching student in batch with improved matching
       const matchingStudent = findMatchingStudent(fullName, batch.students, batch.code);
 
       if (matchingStudent) {
-        console.log(`Found match: "${fullName}" -> "${matchingStudent.name}"`);
-        
         // Parse the first seen time
         const joinTime = parseJoinTime(firstSeen);
         
         if (joinTime) {
-          console.log(`Join time: ${joinTime.toLocaleString()}`);
           // Check if joined within attendance window (10:00-10:10 AM)
           if (joinTime >= attendanceStartTime && joinTime <= attendanceEndTime) {
             presentIds.push(matchingStudent.id);
-            console.log(`Marked as PRESENT: ${matchingStudent.name}`);
           } else {
             // Joined outside the window - mark as another session (late)
             anotherSessionIds.push(matchingStudent.id);
-            console.log(`Marked as LATE: ${matchingStudent.name}`);
           }
         } else {
           // Could not parse time - mark as present by default
           presentIds.push(matchingStudent.id);
-          console.log(`Marked as PRESENT (no time): ${matchingStudent.name}`);
         }
       } else {
         unmatchedNames.push(fullName);
-        console.log(`❌ No match found for: "${fullName}"`);
       }
       
 
     });
-
-    console.log('=== FINAL RESULTS ===');
-    console.log('Present students:', presentIds.length);
-    console.log('Late arrivals:', anotherSessionIds.length);
-    console.log('Unmatched names:', unmatchedNames.length);
-    console.log('Unmatched names list:', unmatchedNames);
-    console.log('====================');
 
     return { presentIds, anotherSessionIds, unmatchedNames };
   };
