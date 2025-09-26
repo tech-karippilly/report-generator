@@ -279,32 +279,43 @@ export default function SessionReportPage() {
       console.log(`--- Processing Row ${index + 1} ---`);
       console.log('Row data:', row);
       console.log('Available columns:', Object.keys(row));
-      // Try multiple column name variations for name
-      const fullName = row['Full Name'] || 
-                      row['full_name'] || 
-                      row['FullName'] || 
-                      row['Name'] || 
-                      row['name'] || 
-                      row['Meet'] || 
-                      row['meet'] || 
-                      row['Participant'] || 
-                      row['participant'] || 
-                      '';
       
-      // Try multiple column name variations for time
-      let firstSeen = row['First Seen'] || 
-                     row['first_seen'] || 
-                     row['FirstSeen'] || 
-                     row['Join Time'] || 
-                     row['join_time'] || 
-                     row['Time'] || 
-                     row['time'] || 
-                     '';
+      // Get name from Meet field (primary source)
+      const fullName = row['Meet'] || row['meet'] || '';
       
-      // If no time found in named columns, check __parsed_extra array
-      if (!firstSeen && row['__parsed_extra'] && Array.isArray(row['__parsed_extra'])) {
-        // Usually the first element in __parsed_extra is the time
+      // Get join time from __parsed_extra[0] (join date and time)
+      let firstSeen = '';
+      if (row['__parsed_extra'] && Array.isArray(row['__parsed_extra']) && row['__parsed_extra'].length > 0) {
         firstSeen = row['__parsed_extra'][0] || '';
+        console.log('__parsed_extra data:', row['__parsed_extra']);
+        console.log('Join time (__parsed_extra[0]):', firstSeen);
+        console.log('Time in meet (__parsed_extra[1]):', row['__parsed_extra'][1] || 'N/A');
+      }
+      
+      // Fallback to other column names if Meet field is empty
+      if (!fullName) {
+        const fallbackName = row['Full Name'] || 
+                            row['full_name'] || 
+                            row['FullName'] || 
+                            row['Name'] || 
+                            row['name'] || 
+                            row['Participant'] || 
+                            row['participant'] || 
+                            '';
+        console.log('Meet field empty, trying fallback:', fallbackName);
+      }
+      
+      // Fallback to other time columns if __parsed_extra is empty
+      if (!firstSeen) {
+        firstSeen = row['First Seen'] || 
+                   row['first_seen'] || 
+                   row['FirstSeen'] || 
+                   row['Join Time'] || 
+                   row['join_time'] || 
+                   row['Time'] || 
+                   row['time'] || 
+                   '';
+        console.log('__parsed_extra empty, trying fallback time:', firstSeen);
       }
       
       console.log('Extracted name:', `"${fullName}"`);
@@ -807,34 +818,31 @@ export default function SessionReportPage() {
                                   </div>
                                 )}
                                 <div className="text-gray-600">
-                                  <strong>Detected name column:</strong> {
+                                  <strong>Name source:</strong> {
                                     csvData[0] ? (
-                                      csvData[0]['Full Name'] ? 'Full Name' :
-                                      csvData[0]['full_name'] ? 'full_name' :
-                                      csvData[0]['FullName'] ? 'FullName' :
-                                      csvData[0]['Name'] ? 'Name' :
-                                      csvData[0]['name'] ? 'name' :
-                                      csvData[0]['Meet'] ? 'Meet' :
-                                      csvData[0]['meet'] ? 'meet' :
-                                      csvData[0]['Participant'] ? 'Participant' :
-                                      csvData[0]['participant'] ? 'participant' :
+                                      csvData[0]['Meet'] ? 'Meet field' :
+                                      csvData[0]['meet'] ? 'meet field' :
+                                      csvData[0]['Full Name'] ? 'Full Name (fallback)' :
+                                      csvData[0]['Name'] ? 'Name (fallback)' :
                                       'None found'
                                     ) : 'No data'
                                   }
                                 </div>
                                 <div className="text-gray-600">
-                                  <strong>Detected time column:</strong> {
+                                  <strong>Time source:</strong> {
                                     csvData[0] ? (
-                                      csvData[0]['First Seen'] ? 'First Seen' :
-                                      csvData[0]['first_seen'] ? 'first_seen' :
-                                      csvData[0]['FirstSeen'] ? 'FirstSeen' :
-                                      csvData[0]['Join Time'] ? 'Join Time' :
-                                      csvData[0]['join_time'] ? 'join_time' :
-                                      csvData[0]['Time'] ? 'Time' :
-                                      csvData[0]['time'] ? 'time' :
-                                      csvData[0]['__parsed_extra'] ? '__parsed_extra[0]' :
+                                      csvData[0]['__parsed_extra'] && csvData[0]['__parsed_extra'].length > 0 ? 
+                                        `__parsed_extra[0] (${csvData[0]['__parsed_extra'][0]})` :
+                                      csvData[0]['First Seen'] ? 'First Seen (fallback)' :
+                                      csvData[0]['Join Time'] ? 'Join Time (fallback)' :
                                       'None found'
                                     ) : 'No data'
+                                  }
+                                </div>
+                                <div className="text-gray-600">
+                                  <strong>Time in meet:</strong> {
+                                    csvData[0] && csvData[0]['__parsed_extra'] && csvData[0]['__parsed_extra'].length > 1 ? 
+                                      `__parsed_extra[1] (${csvData[0]['__parsed_extra'][1]})` : 'N/A'
                                   }
                                 </div>
                                 <div className="text-gray-600">
