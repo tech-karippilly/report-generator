@@ -43,11 +43,6 @@ export default function PointSystemPage() {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
-  // Form state for updating points
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-  const [pointsChange, setPointsChange] = useState<string>('');
-  const [reason, setReason] = useState<string>('');
-  const [isUpdating, setIsUpdating] = useState(false);
   const [showAddPointsModal, setShowAddPointsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [performerToDelete, setPerformerToDelete] = useState<WeeklyBestPerformer | null>(null);
@@ -148,96 +143,6 @@ export default function PointSystemPage() {
     return unsubscribe;
   }, []);
 
-  const handleUpdatePoints = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedStudentId || !pointsChange || !reason.trim()) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    const pointsChangeNum = parseInt(pointsChange);
-    if (isNaN(pointsChangeNum) || pointsChangeNum === 0) {
-      setError('Points change must be a non-zero number');
-      return;
-    }
-
-    if (!currentUser) {
-      setError('You must be logged in to update points');
-      return;
-    }
-
-    setIsUpdating(true);
-    setError('');
-
-    try {
-      const selectedStudent = students.find(s => s.id === selectedStudentId);
-      if (!selectedStudent) {
-        throw new Error('Student not found');
-      }
-
-      const selectedBatch = batches.find(b => b.id === selectedBatchId);
-      if (!selectedBatch) {
-        throw new Error('Batch not found');
-      }
-
-      // Create point update record
-      const pointUpdate: Omit<PointUpdate, 'id'> = {
-        studentId: selectedStudentId,
-        studentName: selectedStudent.name,
-        batchId: selectedBatchId,
-        batchCode: selectedBatch.code,
-        pointsChange: pointsChangeNum,
-        reason: reason.trim(),
-        updatedBy: currentUser.email || 'Unknown',
-        dateISO: new Date().toISOString().split('T')[0],
-        createdAt: Date.now()
-      };
-
-      // Add point update to Firestore
-      if (!db) throw new Error('Database not available');
-      await addDoc(collection(db, 'pointUpdates'), pointUpdate);
-
-      // Update student's current points in the batch
-      const studentIndex = selectedBatch.students.findIndex(s => s.id === selectedStudentId);
-      if (studentIndex !== -1) {
-        const updatedStudents = [...selectedBatch.students];
-        updatedStudents[studentIndex] = {
-          ...updatedStudents[studentIndex],
-          points: (updatedStudents[studentIndex].points || 100) + pointsChangeNum
-        };
-
-        if (!db) throw new Error('Database not available');
-        await updateDoc(doc(db, 'batches', selectedBatchId), {
-          students: updatedStudents
-        });
-      }
-
-      // Update local students state
-      setStudents(prev => prev.map(student => 
-        student.id === selectedStudentId 
-          ? {
-              ...student,
-              points: (student.points || 100) + pointsChangeNum
-            }
-          : student
-      ));
-
-      setSuccess(`Points ${pointsChangeNum > 0 ? 'added' : 'removed'} successfully!`);
-      setPointsChange('');
-      setReason('');
-      setSelectedStudentId('');
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-
-    } catch (error) {
-      console.error('Error updating points:', error);
-      setError('Failed to update points. Please try again.');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   const getPointsColor = (points: number) => {
     if (points >= 80) return 'text-green-600';
