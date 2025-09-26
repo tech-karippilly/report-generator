@@ -26,7 +26,7 @@ export function buildWhatsappReportText(batch: Batch, report: SessionReport): st
   const lines: string[] = [];
   lines.push(`Communication Session Report`);
   lines.push(`-------------------------------------`);
-  lines.push(`Batch: ${report.batchCode}`);
+  lines.push(`Batch: ${report.batchCode}${report.groupName ? ` - ${report.groupName}` : ''}`);
   lines.push(`📅 Date: ${new Date(report.dateISO).toLocaleDateString("en-GB")}`);
   lines.push(`--------------------------------------------`);
   lines.push(`Trainers:- ${trainerNames}.`);

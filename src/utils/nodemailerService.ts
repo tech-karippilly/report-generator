@@ -1,206 +1,19 @@
-// Email template for student login credentials
-export const generateStudentLoginEmailTemplate = (credentials: {
-  name: string;
-  email: string;
-  tempPassword: string;
-  batchCode: string;
-  groupName?: string;
-  loginUrl: string;
-}): string => {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Comm Reports - Login Credentials</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-        }
-        .content {
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 0 0 10px 10px;
-        }
-        .credentials-box {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .credential-item {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .credential-label {
-            font-weight: bold;
-            color: #495057;
-        }
-        .credential-value {
-            font-family: monospace;
-            background: #e9ecef;
-            padding: 5px 10px;
-            border-radius: 3px;
-            color: #495057;
-        }
-        .login-button {
-            display: inline-block;
-            background: #007bff;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 20px 0;
-            font-weight: bold;
-        }
-        .login-button:hover {
-            background: #0056b3;
-        }
-        .warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #6c757d;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🎓 Welcome to Comm Reports!</h1>
-        <p>Your login credentials for ${credentials.batchCode}</p>
-    </div>
-    
-    <div class="content">
-        <h2>Hello ${credentials.name}!</h2>
-        
-        <p>You have been added to the training batch <strong>${credentials.batchCode}</strong>${credentials.groupName ? ` (${credentials.groupName})` : ''}.</p>
-        
-        <p>Below are your login credentials to access the Comm Reports system:</p>
-        
-        <div class="credentials-box">
-            <h3>🔐 Your Login Credentials</h3>
-            <div class="credential-item">
-                <span class="credential-label">Email:</span>
-                <span class="credential-value">${credentials.email}</span>
-            </div>
-            <div class="credential-item">
-                <span class="credential-label">Temporary Password:</span>
-                <span class="credential-value">${credentials.tempPassword}</span>
-            </div>
-            <div class="credential-item">
-                <span class="credential-label">Batch Code:</span>
-                <span class="credential-value">${credentials.batchCode}</span>
-            </div>
-        </div>
-        
-        <div style="text-align: center;">
-            <a href="${credentials.loginUrl}" class="login-button">🚀 Login to Comm Reports</a>
-        </div>
-        
-        <div class="warning">
-            <strong>⚠️ Important Security Notice:</strong>
-            <ul>
-                <li>This is a temporary password - please change it after your first login</li>
-                <li>Keep your login credentials secure and don't share them with others</li>
-                <li>If you didn't expect this email, please contact your trainer immediately</li>
-            </ul>
-        </div>
-        
-        <h3>📋 What you can do with Comm Reports:</h3>
-        <ul>
-            <li>View your batch information and fellow students</li>
-            <li>Access session reports and attendance records</li>
-            <li>Generate daily session announcements</li>
-            <li>Stay updated with training schedules and links</li>
-        </ul>
-        
-        <p>If you have any questions or need assistance, please don't hesitate to contact your trainer or coordinator.</p>
-        
-        <p>Welcome aboard and happy learning! 🎉</p>
-    </div>
-    
-    <div class="footer">
-        <p>This email was sent by the Comm Reports system.</p>
-        <p>Please do not reply to this email.</p>
-    </div>
-</body>
-</html>
-  `.trim();
-};
+// Nodemailer-based email service for sending notifications
+// This service will be used with a backend API endpoint
 
-// Plain text version of the email
-export const generateStudentLoginEmailText = (credentials: {
-  name: string;
-  email: string;
-  tempPassword: string;
-  batchCode: string;
-  groupName?: string;
-  loginUrl: string;
-}): string => {
-  return `
-Welcome to Comm Reports!
+export interface NodemailerConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
 
-Hello ${credentials.name}!
-
-You have been added to the training batch ${credentials.batchCode}${credentials.groupName ? ` (${credentials.groupName})` : ''}.
-
-Your login credentials:
-- Email: ${credentials.email}
-- Temporary Password: ${credentials.tempPassword}
-- Batch Code: ${credentials.batchCode}
-
-Login URL: ${credentials.loginUrl}
-
-IMPORTANT SECURITY NOTICE:
-- This is a temporary password - please change it after your first login
-- Keep your login credentials secure and don't share them with others
-- If you didn't expect this email, please contact your trainer immediately
-
-What you can do with Comm Reports:
-- View your batch information and fellow students
-- Access session reports and attendance records
-- Generate daily session announcements
-- Stay updated with training schedules and links
-
-If you have any questions or need assistance, please contact your trainer or coordinator.
-
-Welcome aboard and happy learning!
-
----
-This email was sent by the Comm Reports system.
-Please do not reply to this email.
-  `.trim();
-};
-
-// Session Reminder Email Template
-export const generateSessionReminderEmailTemplate = (data: {
+export interface SessionReminderData {
   studentName: string;
+  studentEmail: string;
   batchCode: string;
   groupName?: string;
   sessionDate: string;
@@ -209,7 +22,20 @@ export const generateSessionReminderEmailTemplate = (data: {
   activityTitle: string;
   activityDescription?: string;
   trainerName: string;
-}): string => {
+}
+
+export interface DailyTaskReminderData {
+  studentName: string;
+  studentEmail: string;
+  batchCode: string;
+  groupName?: string;
+  taskMessage: string;
+  date: string;
+  trainerName: string;
+}
+
+// Generate session reminder email HTML
+export const generateSessionReminderHTML = (data: SessionReminderData): string => {
   return `
 <!DOCTYPE html>
 <html>
@@ -355,15 +181,8 @@ export const generateSessionReminderEmailTemplate = (data: {
   `.trim();
 };
 
-// Daily Task Reminder Email Template
-export const generateDailyTaskReminderEmailTemplate = (data: {
-  studentName: string;
-  batchCode: string;
-  groupName?: string;
-  taskMessage: string;
-  date: string;
-  trainerName: string;
-}): string => {
+// Generate daily task reminder email HTML
+export const generateDailyTaskReminderHTML = (data: DailyTaskReminderData): string => {
   return `
 <!DOCTYPE html>
 <html>
@@ -489,18 +308,8 @@ export const generateDailyTaskReminderEmailTemplate = (data: {
   `.trim();
 };
 
-// Plain text versions
-export const generateSessionReminderEmailText = (data: {
-  studentName: string;
-  batchCode: string;
-  groupName?: string;
-  sessionDate: string;
-  sessionTime: string;
-  meetUrl: string;
-  activityTitle: string;
-  activityDescription?: string;
-  trainerName: string;
-}): string => {
+// Generate plain text versions
+export const generateSessionReminderText = (data: SessionReminderData): string => {
   return `
 Session Reminder - ${data.batchCode}${data.groupName ? ` - ${data.groupName}` : ''}
 
@@ -533,14 +342,7 @@ Please do not reply to this email.
   `.trim();
 };
 
-export const generateDailyTaskReminderEmailText = (data: {
-  studentName: string;
-  batchCode: string;
-  groupName?: string;
-  taskMessage: string;
-  date: string;
-  trainerName: string;
-}): string => {
+export const generateDailyTaskReminderText = (data: DailyTaskReminderData): string => {
   return `
 Daily Task Reminder - ${data.batchCode}${data.groupName ? ` - ${data.groupName}` : ''}
 
@@ -566,4 +368,91 @@ Good luck with today's work!
 This reminder was sent by the Comm Reports system.
 Please do not reply to this email.
   `.trim();
+};
+
+// Firebase Functions to send emails
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+const functions = getFunctions();
+
+// Callable function for sending emails
+const sendEmailFunction = httpsCallable(functions, 'sendEmail');
+
+export const sendSessionReminderEmail = async (data: SessionReminderData): Promise<boolean> => {
+  try {
+    const result = await sendEmailFunction({
+      type: 'session_reminder',
+      emailData: data
+    });
+
+    return (result.data as any).success;
+  } catch (error) {
+    console.error('Failed to send session reminder email:', error);
+    return false;
+  }
+};
+
+export const sendDailyTaskReminderEmail = async (data: DailyTaskReminderData): Promise<boolean> => {
+  try {
+    const result = await sendEmailFunction({
+      type: 'daily_task_reminder',
+      emailData: data
+    });
+
+    return (result.data as any).success;
+  } catch (error) {
+    console.error('Failed to send daily task reminder email:', error);
+    return false;
+  }
+};
+
+// Bulk email functions
+export const sendBulkSessionReminderEmails = async (
+  reminders: SessionReminderData[]
+): Promise<{ success: number; failed: number; errors: string[] }> => {
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const reminder of reminders) {
+    try {
+      const result = await sendSessionReminderEmail(reminder);
+      if (result) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`Failed to send session reminder to ${reminder.studentEmail}`);
+      }
+    } catch (error) {
+      failed++;
+      errors.push(`Error sending session reminder to ${reminder.studentEmail}: ${error}`);
+    }
+  }
+
+  return { success, failed, errors };
+};
+
+export const sendBulkDailyTaskReminderEmails = async (
+  reminders: DailyTaskReminderData[]
+): Promise<{ success: number; failed: number; errors: string[] }> => {
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const reminder of reminders) {
+    try {
+      const result = await sendDailyTaskReminderEmail(reminder);
+      if (result) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`Failed to send daily task reminder to ${reminder.studentEmail}`);
+      }
+    } catch (error) {
+      failed++;
+      errors.push(`Error sending daily task reminder to ${reminder.studentEmail}: ${error}`);
+    }
+  }
+
+  return { success, failed, errors };
 };

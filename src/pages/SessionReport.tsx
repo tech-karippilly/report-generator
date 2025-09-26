@@ -19,7 +19,7 @@ export default function SessionReportPage() {
   const { currentUser } = useAuth();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  // const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [dateISO, setDateISO] = useState<string>(todayISO());
   const [activityTitle, setActivityTitle] = useState<string>("Today's Activity – Roleplay");
   const [activityDescription, setActivityDescription] = useState<string>("");
@@ -188,6 +188,7 @@ export default function SessionReportPage() {
         id: "",
         batchId: selectedBatch.id,
         batchCode: selectedBatch.code,
+        groupName: selectedBatch.groupName,
         dateISO,
         activityTitle: activityTitle.trim(),
         activityDescription: activityDescription.trim() || undefined,
@@ -244,6 +245,7 @@ export default function SessionReportPage() {
       id: "preview",
       batchId: selectedBatch.id,
       batchCode: selectedBatch.code,
+      groupName: selectedBatch.groupName,
       dateISO,
       activityTitle,
       activityDescription,
@@ -270,160 +272,163 @@ export default function SessionReportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Session Report</h2>
-      
-      {alertMsg && <Alert tone={alertTone}>{alertMsg}</Alert>}
+    <div className="min-h-screen w-full bg-gray-50 p-4">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="space-y-6">
+          {alertMsg && <Alert tone={alertTone}>{alertMsg}</Alert>}
 
-      <div className="max-w-4xl mx-auto">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Report Details</h3>
-          <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
-            {/* Batch Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Batch *
-              </label>
-              <select 
-                value={selectedBatchId} 
-                onChange={(e) => setSelectedBatchId(e.target.value)} 
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Choose a batch...</option>
-                {batches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.code} {b.groupName && `- ${b.groupName}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Basic Information */}
+              <div className="space-y-4">
+                {/* Batch Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Batch *
+                  </label>
+                  <select 
+                    value={selectedBatchId} 
+                    onChange={(e) => setSelectedBatchId(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a batch...</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.code} {b.groupName && `- ${b.groupName}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Group Selection (if batch has groups) */}
-            {selectedBatch && selectedBatch.groupName && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Group
-                </label>
-                <input 
-                  type="text" 
-                  value={selectedBatch.groupName} 
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                />
+                {/* Group Selection (if batch has groups) */}
+                {selectedBatch && selectedBatch.groupName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Group
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedBatch.groupName} 
+                      disabled
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  </div>
+                )}
+
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date *
+                  </label>
+                  <input 
+                    type="date" 
+                    value={dateISO} 
+                    onChange={(e) => setDateISO(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Activity Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Activity Title *
+                  </label>
+                  <input 
+                    value={activityTitle} 
+                    onChange={(e) => setActivityTitle(e.target.value)} 
+                    placeholder="e.g., Today's Activity – Roleplay"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Activity Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Activity Description
+                  </label>
+                  <textarea 
+                    value={activityDescription} 
+                    onChange={(e) => setActivityDescription(e.target.value)} 
+                    rows={3}
+                    placeholder="Describe the activity details..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date *
-              </label>
-              <input 
-                type="date" 
-                value={dateISO} 
-                onChange={(e) => setDateISO(e.target.value)} 
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              {/* Right Column - Links and Details */}
+              <div className="space-y-4">
+                {/* Meet Link */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meet Link
+                  </label>
+                  <input 
+                    value={meetUrl} 
+                    onChange={(e) => setMeetUrl(e.target.value)} 
+                    placeholder="https://meet.google.com/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* TLDV Link */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    TLDV Link
+                  </label>
+                  <input 
+                    value={tldvUrl} 
+                    onChange={(e) => setTldvUrl(e.target.value)} 
+                    placeholder="https://tldv.io/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Reported By */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reported By *
+                  </label>
+                  <input 
+                    value={reportedBy} 
+                    onChange={(e) => setReportedBy(e.target.value)} 
+                    placeholder="Enter reporter name"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-filled with your name from your account
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Activity Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Activity Title *
-              </label>
-              <input 
-                value={activityTitle} 
-                onChange={(e) => setActivityTitle(e.target.value)} 
-                placeholder="e.g., Today's Activity – Roleplay"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Activity Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Activity Description
-              </label>
-              <textarea 
-                value={activityDescription} 
-                onChange={(e) => setActivityDescription(e.target.value)} 
-                rows={3}
-                placeholder="Describe the activity details..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Meet Link */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Meet Link
-              </label>
-              <input 
-                value={meetUrl} 
-                onChange={(e) => setMeetUrl(e.target.value)} 
-                placeholder="https://meet.google.com/..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* TLDV Link */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                TLDV Link
-              </label>
-              <input 
-                value={tldvUrl} 
-                onChange={(e) => setTldvUrl(e.target.value)} 
-                placeholder="https://tldv.io/..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Reported By */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reported By *
-              </label>
-              <input 
-                value={reportedBy} 
-                onChange={(e) => setReportedBy(e.target.value)} 
-                placeholder="Enter reporter name"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Auto-filled with your name from your account
-              </p>
-            </div>
-
-            {/* Attendance */}
+            {/* Attendance Section - Full Width */}
             {selectedBatch && (
-              <div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Attendance ({presentIds.length} present, {anotherSessionIds.length} another session, {selectedBatch.students.length - presentIds.length - anotherSessionIds.length} absent)
                 </label>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
                   {selectedBatch.students.map((s) => {
                     const isPresent = presentIds.includes(s.id);
                     const isAnotherSession = anotherSessionIds.includes(s.id);
                     const isAbsent = !isPresent && !isAnotherSession;
                     
                     return (
-                      <div key={s.id} className="p-4 border border-gray-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">{s.name}</div>
-                            <div className="text-sm text-gray-500">{s.email}</div>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            {isPresent && <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">Present</span>}
-                            {isAnotherSession && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Another Session</span>}
-                            {isAbsent && <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full">Absent</span>}
-                          </div>
+                      <div key={s.id} className="p-3 rounded-lg bg-white shadow-md hover:shadow-lg transition-shadow">
+                        <div className="mb-3">
+                          <div className="font-medium text-gray-900 text-sm truncate">{s.name}</div>
+                          <div className="text-xs text-gray-500 truncate">{s.email}</div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="mb-2">
+                          {isPresent && <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Present</span>}
+                          {isAnotherSession && <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Another Session</span>}
+                          {isAbsent && <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Absent</span>}
+                        </div>
+                        <div className="flex flex-col gap-1">
                           <button
                             onClick={() => toggleStudent(s.id, 'present')}
-                            className={`px-3 py-1 text-xs rounded-md border transition-colors ${
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
                               isPresent 
                                 ? 'bg-green-500 text-white border-green-500' 
                                 : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
@@ -433,7 +438,7 @@ export default function SessionReportPage() {
                           </button>
                           <button
                             onClick={() => toggleStudent(s.id, 'another_session')}
-                            className={`px-3 py-1 text-xs rounded-md border transition-colors ${
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
                               isAnotherSession 
                                 ? 'bg-blue-500 text-white border-blue-500' 
                                 : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
@@ -446,7 +451,7 @@ export default function SessionReportPage() {
                               setPresentIds(prev => prev.filter(id => id !== s.id));
                               setAnotherSessionIds(prev => prev.filter(id => id !== s.id));
                             }}
-                            className={`px-3 py-1 text-xs rounded-md border transition-colors ${
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
                               isAbsent 
                                 ? 'bg-red-500 text-white border-red-500' 
                                 : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
@@ -464,7 +469,7 @@ export default function SessionReportPage() {
 
             {/* Other Batch Students */}
             {selectedBatch && (
-              <div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Other Batch Students ({otherBatchStudents.length} added)
                 </label>
@@ -510,7 +515,7 @@ export default function SessionReportPage() {
                 {otherBatchStudents.length > 0 && (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {otherBatchStudents.map((student) => (
-                      <div key={student.id} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div key={student.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">{student.name}</div>
                           <div className="text-sm text-gray-600">({student.batchName})</div>
@@ -530,14 +535,14 @@ export default function SessionReportPage() {
 
             {/* Combined Session Students */}
             {selectedBatch && (
-              <div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Combined Session Students ({combinedSessionStudents.length} added)
                 </label>
                 
                 {/* Add Combined Session Student Form */}
                 <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
                         Student Name *
@@ -612,7 +617,7 @@ export default function SessionReportPage() {
                 {combinedSessionStudents.length > 0 && (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {combinedSessionStudents.map((student) => (
-                      <div key={student.id} className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div key={student.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">{student.name}</div>
                           <div className="text-sm text-gray-600">
@@ -635,23 +640,25 @@ export default function SessionReportPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button 
-                variant="secondary" 
-                onClick={() => setShowPreviewModal(true)}
-                disabled={!previewText}
-                className="flex-1"
-              >
-                Preview Report
-              </Button>
-              <Button 
-                variant="primary" 
-                disabled={!canSave || isSaving} 
-                onClick={handleSave}
-                className="flex-1"
-              >
-                {isSaving ? 'Saving...' : 'Save & Copy Report'}
-              </Button>
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => setShowPreviewModal(true)}
+                  disabled={!previewText}
+                  className="flex-1"
+                >
+                  Preview Report
+                </Button>
+                <Button 
+                  variant="primary" 
+                  disabled={!canSave || isSaving} 
+                  onClick={handleSave}
+                  className="flex-1"
+                >
+                  {isSaving ? 'Saving...' : 'Save & Copy Report'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -698,7 +705,7 @@ export default function SessionReportPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-6">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border">
+              <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-lg shadow-md">
                 {previewText}
               </pre>
             </div>

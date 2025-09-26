@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import emailjs from '@emailjs/browser';
+import { sendStudentLoginEmail } from '../utils/apiEmailService';
 
 export default function EmailDebug() {
   const [result, setResult] = useState<string>('');
@@ -10,37 +10,29 @@ export default function EmailDebug() {
     setResult('Testing...');
     
     try {
-      // Initialize EmailJS
-      emailjs.init('XX_vyoM7pPkvI6W_x');
-      
-      const templateParams = {
-        to_name: 'Test User',
-        to_email: 'suuportreportgenerator@gmail.com',
-        temp_password: 'TestPass123!',
-        batch_code: 'TEST_BATCH',
-        group_name: 'Test Group',
-        login_url: 'http://localhost:5175/login',
-        from_name: 'Comm Reports Team',
-        // Try different email field names
+      const testCredentials = {
+        name: 'Test User',
         email: 'suuportreportgenerator@gmail.com',
-        recipient_email: 'suuportreportgenerator@gmail.com',
-        user_email: 'suuportreportgenerator@gmail.com'
+        tempPassword: 'TestPass123!',
+        batchCode: 'TEST_BATCH',
+        groupName: 'Test Group',
+        loginUrl: 'https://report-generator-4a753.web.app/login'
       };
 
-      console.log('Sending test email with params:', templateParams);
+      console.log('Sending test email with credentials:', testCredentials);
       
-      const response = await emailjs.send(
-        'service_13lxauc',
-        'template_xwho51h',
-        templateParams
-      );
+      const success = await sendStudentLoginEmail(testCredentials);
       
-      console.log('Email sent successfully:', response);
-      setResult('✅ Email sent successfully! Check your inbox.');
+      if (success) {
+        console.log('Email sent successfully');
+        setResult('✅ Email sent successfully! Check your inbox.');
+      } else {
+        setResult('❌ Error: Failed to send email. Check console for details.');
+      }
       
     } catch (error: any) {
       console.error('Email sending failed:', error);
-      setResult(`❌ Error: ${error.text || error.message}`);
+      setResult(`❌ Error: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setLoading(false);
     }
@@ -53,9 +45,9 @@ export default function EmailDebug() {
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
         <h2 className="font-semibold mb-2">Current Configuration:</h2>
         <ul className="text-sm space-y-1">
-          <li>Service ID: service_13lxauc</li>
-          <li>Template ID: template_xwho51h</li>
-          <li>Public Key: XX_vyoM7pPkvI6W_x</li>
+          <li>API Base URL: https://report-generator-backend-r85v.onrender.com</li>
+          <li>Email Service: API-based (Backend)</li>
+          <li>Status: Using direct API calls instead of EmailJS</li>
         </ul>
       </div>
 
@@ -78,10 +70,11 @@ export default function EmailDebug() {
       <div className="mt-6 text-sm text-gray-600">
         <h3 className="font-semibold mb-2">Troubleshooting Steps:</h3>
         <ol className="list-decimal list-inside space-y-1">
-          <li>Check EmailJS dashboard - is your Gmail service active?</li>
-          <li>Check template settings - is "To Email" field set to {{to_email}}?</li>
+          <li>Check if backend API is running at https://report-generator-backend-r85v.onrender.com</li>
+          <li>Verify API endpoints are accessible (/api/send-welcome, /api/send-session-reminder, etc.)</li>
+          <li>Check browser network tab for API call errors</li>
           <li>Check spam folder for the test email</li>
-          <li>Try re-authenticating your Gmail service in EmailJS</li>
+          <li>Verify backend email service configuration</li>
         </ol>
       </div>
     </div>

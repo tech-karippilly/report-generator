@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   sendPasswordResetEmail,
-  confirmPasswordReset,
+  // confirmPasswordReset,
   onAuthStateChanged,
   updatePassword
 } from 'firebase/auth';

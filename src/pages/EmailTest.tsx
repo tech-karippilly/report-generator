@@ -1,79 +1,150 @@
 import { useState } from 'react';
-import emailjs from '@emailjs/browser';
+import { sendSessionReminderEmail, sendDailyTaskReminderEmail } from '../utils/apiEmailService';
+import Button from '../components/Button';
+import Alert from '../components/Alert';
 
-export default function EmailTest() {
+export default function EmailTestPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<string>('');
+  const [alertMsg, setAlertMsg] = useState('');
+  const [alertTone, setAlertTone] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [testEmail, setTestEmail] = useState('');
 
-  const testEmail = async () => {
+  const testSessionReminder = async () => {
+    if (!testEmail.trim()) {
+      setAlertTone('error');
+      setAlertMsg('Please enter a test email address');
+      return;
+    }
+
     setIsLoading(true);
-    setResult('');
+    setAlertMsg('');
 
     try {
-      // Initialize EmailJS
-      emailjs.init('XX_vyoM7pPkvI6W_x');
-      
-      const templateParams = {
-        to_name: 'Test User',
-        to_email: 'suuportreportgenerator@gmail.com',
-        temp_password: 'TestPass123!',
-        batch_code: 'TEST_BATCH',
-        group_name: 'Test Group',
-        login_url: 'http://localhost:5175/login',
-        from_name: 'Comm Reports Team'
-      };
+      const result = await sendSessionReminderEmail({
+        studentName: 'Test Student',
+        studentEmail: testEmail.trim(),
+        batchCode: 'TEST-BATCH',
+        groupName: 'Test Group',
+        sessionDate: new Date().toISOString().split('T')[0],
+        sessionTime: '10:00 AM',
+        meetUrl: 'https://meet.google.com/test-link',
+        activityTitle: 'Test Session',
+        activityDescription: 'This is a test session reminder',
+        trainerName: 'Test Trainer'
+      });
 
-      console.log('Sending test email with params:', templateParams);
-      
-      const response = await emailjs.send(
-        'service_13lxauc',
-        'template_xwho51h',
-        templateParams
-      );
-      
-      console.log('Email sent successfully:', response);
-      setResult(`✅ Email sent successfully! Status: ${response.status}`);
-      
-    } catch (error: any) {
-      console.error('Email sending failed:', error);
-      setResult(`❌ Email failed: ${error.message || error.text || 'Unknown error'}`);
+      if (result) {
+        setAlertTone('success');
+        setAlertMsg('Session reminder sent successfully! Check your email.');
+      } else {
+        setAlertTone('error');
+        setAlertMsg('Failed to send session reminder. Check console for errors.');
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      setAlertTone('error');
+      setAlertMsg(`Error: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const testTaskReminder = async () => {
+    if (!testEmail.trim()) {
+      setAlertTone('error');
+      setAlertMsg('Please enter a test email address');
+      return;
+    }
+
+    setIsLoading(true);
+    setAlertMsg('');
+
+    try {
+      const result = await sendDailyTaskReminderEmail({
+        studentName: 'Test Student',
+        studentEmail: testEmail.trim(),
+        batchCode: 'TEST-BATCH',
+        groupName: 'Test Group',
+        taskMessage: 'This is a test task reminder message. Please complete your daily tasks.',
+        date: new Date().toISOString().split('T')[0],
+        trainerName: 'Test Trainer'
+      });
+
+      if (result) {
+        setAlertTone('success');
+        setAlertMsg('Task reminder sent successfully! Check your email.');
+      } else {
+        setAlertTone('error');
+        setAlertMsg('Failed to send task reminder. Check console for errors.');
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      setAlertTone('error');
+      setAlertMsg(`Error: ${error}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Email Test Page</h1>
-      
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-2">Configuration:</h2>
-        <ul className="text-sm space-y-1">
-          <li>Service ID: service_13lxauc</li>
-          <li>Template ID: template_xwho51h</li>
-          <li>Public Key: XX_vyoM7pPkvI6W_x</li>
-        </ul>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">🧪 Email Test</h1>
+            <p className="text-gray-600">Test email sending functionality</p>
+          </div>
 
-      <button
-        onClick={testEmail}
-        disabled={isLoading}
-        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-      >
-        {isLoading ? 'Sending...' : 'Send Test Email'}
-      </button>
+          {alertMsg && (
+            <div className="mb-6">
+              <Alert tone={alertTone}>{alertMsg}</Alert>
+            </div>
+          )}
 
-      {result && (
-        <div className={`mt-4 p-4 rounded-lg ${
-          result.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-        }`}>
-          {result}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Test Email Address
+              </label>
+              <input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="Enter your email address to test"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                onClick={testSessionReminder}
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? 'Sending...' : 'Test Session Reminder'}
+              </Button>
+
+              <Button
+                onClick={testTaskReminder}
+                disabled={isLoading}
+                variant="secondary"
+                className="w-full"
+              >
+                {isLoading ? 'Sending...' : 'Test Task Reminder'}
+              </Button>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+              <h3 className="font-semibold text-yellow-800 mb-2">Troubleshooting Tips:</h3>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Check your spam folder if you don't receive the email</li>
+                <li>• Make sure your backend API is running and accessible</li>
+                <li>• Check the browser console for any error messages</li>
+                <li>• Verify your Gmail app password is correct</li>
+              </ul>
+            </div>
+          </div>
         </div>
-      )}
-
-      <div className="mt-6 text-sm text-gray-600">
-        <p><strong>Note:</strong> Check your email (including spam folder) after clicking the button.</p>
-        <p><strong>Console:</strong> Open Developer Tools (F12) to see detailed logs.</p>
       </div>
     </div>
   );
