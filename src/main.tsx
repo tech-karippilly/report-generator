@@ -19,6 +19,7 @@ import EmailDebug from './pages/EmailDebug.tsx'
 import PointSystemPage from './pages/PointSystem.tsx'
 import AutomatedSessionReportPage from './pages/AutomatedSessionReport.tsx'
 import AnalyticsPage from './pages/Analytics.tsx'
+import BestPerformerPage from './pages/BestPerformer.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 const router = createBrowserRouter([
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: 'report', element: <SessionReportPage /> },
       { path: 'automated-report', element: <AutomatedSessionReportPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
+      { path: 'best-performer', element: <BestPerformerPage /> },
       { path: 'daily', element: <DailySessionPage /> },
       // Protected routes (require authentication)
       {
