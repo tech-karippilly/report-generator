@@ -621,49 +621,6 @@ export default function AutomatedSessionReportPage() {
                           </Button>
                         )}
                         
-                        {matchingResults && (
-                          <div className="space-y-2">
-                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <div className="text-sm text-blue-800">
-                                <strong>Matching Results:</strong> {matchingResults.matched.length} matched, {matchingResults.unmatched.length} unmatched
-                              </div>
-                            </div>
-                            
-                            {matchingResults.matched.length > 0 && (
-                              <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
-                                <summary className="cursor-pointer font-medium text-gray-700">View Matched Participants</summary>
-                                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                                  {matchingResults.matched.map((match, index) => {
-                                    const isAutoPresent = match.confidence >= 0.9;
-                                    return (
-                                      <div key={index} className="text-gray-600">
-                                        <span className="font-medium">"{match.participant.fullName}"</span> →
-                                        <span className="font-medium"> "{match.student.name}"</span>
-                                        <span className={`ml-2 ${isAutoPresent ? 'text-green-600 font-bold' : 'text-blue-600'}`}>
-                                          ({match.matchType} - {(match.confidence * 100).toFixed(0)}%)
-                                          {isAutoPresent && ' ✅ AUTO-PRESENT'}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                            )}
-                            
-                            {matchingResults.unmatched.length > 0 && (
-                              <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
-                                <summary className="cursor-pointer font-medium text-gray-700">View Unmatched Participants</summary>
-                                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                                  {matchingResults.unmatched.map((participant, index) => (
-                                    <div key={index} className="text-gray-600">
-                                      <span className="font-medium">"{participant.fullName}"</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </details>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
