@@ -25,6 +25,8 @@ interface BestPerformer {
 export default function BestPerformerPage() {
   const [bestPerformers, setBestPerformers] = useState<BestPerformer[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [selectedPerformer, setSelectedPerformer] = useState<BestPerformer | null>(null);
   const [selectedMonth] = useState(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
   const [loading, setLoading] = useState(true);
   const [alertMsg, setAlertMsg] = useState("");
@@ -140,6 +142,16 @@ export default function BestPerformerPage() {
 
   const closeModal = () => {
     setShowModal(false);
+  };
+
+  const showPerformerCertificate = (performer: BestPerformer) => {
+    setSelectedPerformer(performer);
+    setShowCertificate(true);
+  };
+
+  const closeCertificate = () => {
+    setShowCertificate(false);
+    setSelectedPerformer(null);
   };
 
   if (loading) {
@@ -309,6 +321,12 @@ export default function BestPerformerPage() {
                               <div className="text-right">
                                 <div className="text-2xl font-bold text-gray-900">{performer.points} pts</div>
                                 <div className="text-sm text-gray-600">Rank #{performer.rank}</div>
+                                <Button
+                                  onClick={() => showPerformerCertificate(performer)}
+                                  className="mt-2 px-3 py-1 text-xs bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full hover:scale-105 transition-transform"
+                                >
+                                  🏆 View Certificate
+                                </Button>
                               </div>
                             </div>
                             
@@ -361,6 +379,12 @@ export default function BestPerformerPage() {
                               <div className="text-right">
                                 <div className="text-2xl font-bold text-gray-900">{performer.points} pts</div>
                                 <div className="text-sm text-gray-600">Rank #{performer.rank}</div>
+                                <Button
+                                  onClick={() => showPerformerCertificate(performer)}
+                                  className="mt-2 px-3 py-1 text-xs bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-full hover:scale-105 transition-transform"
+                                >
+                                  ⭐ View Certificate
+                                </Button>
                               </div>
                             </div>
                             
@@ -413,6 +437,12 @@ export default function BestPerformerPage() {
                               <div className="text-right">
                                 <div className="text-2xl font-bold text-gray-900">{performer.points} pts</div>
                                 <div className="text-sm text-gray-600">Rank #{performer.rank}</div>
+                                <Button
+                                  onClick={() => showPerformerCertificate(performer)}
+                                  className="mt-2 px-3 py-1 text-xs bg-gradient-to-r from-green-400 to-teal-500 text-white rounded-full hover:scale-105 transition-transform"
+                                >
+                                  🌟 View Certificate
+                                </Button>
                               </div>
                             </div>
                             
@@ -457,6 +487,132 @@ export default function BestPerformerPage() {
                 className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white"
               >
                 📤 Share
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Certificate Modal */}
+      {showCertificate && selectedPerformer && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={closeCertificate}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Certificate Header */}
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-4 text-white text-center">
+              <h2 className="text-2xl font-bold">Performance Certificate</h2>
+            </div>
+
+            {/* Certificate Content */}
+            <div className="p-6 max-h-96 overflow-y-auto">
+              <div className="text-center">
+                <div className="mb-6">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-2">
+                    {selectedPerformer.category === 'best' && '🏆 Best Performer of the Month'}
+                    {selectedPerformer.category === 'star' && '⭐ Star Performer of the Month'}
+                    {selectedPerformer.category === 'outstanding' && '🌟 Outstanding Performer of the Month'}
+                  </h3>
+                  <p className="text-lg text-gray-600">BCR69 GROUP-2</p>
+                </div>
+
+                {/* Certificate Design */}
+                <div className="relative bg-black rounded-2xl p-8 text-white mb-6 overflow-hidden">
+                  {/* Background decorations */}
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-yellow-400 to-orange-500 opacity-20 rounded-full -translate-x-16 -translate-y-16"></div>
+                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-yellow-400 to-orange-500 opacity-20 rounded-full translate-x-16 translate-y-16"></div>
+                  
+                  {/* Certificate content */}
+                  <div className="relative z-10">
+                    <div className="text-center mb-6">
+                      <h4 className="text-sm text-yellow-300 mb-2">BCR69 GROUP-2</h4>
+                      <h5 className="text-2xl text-yellow-400 font-bold mb-4">CONGRATULATIONS</h5>
+                    </div>
+
+                    {/* Name banner */}
+                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg p-4 mb-6">
+                      <h6 className="text-3xl font-bold text-black">
+                        {selectedPerformer.student.name.toUpperCase()}
+                      </h6>
+                    </div>
+
+                    {/* Title */}
+                    <div className="mb-6">
+                      <div className="text-xl font-bold text-yellow-400">
+                        {selectedPerformer.category === 'best' && 'BEST PERFORMER OF THE MONTH'}
+                        {selectedPerformer.category === 'star' && 'STAR PERFORMER OF THE MONTH'}
+                        {selectedPerformer.category === 'outstanding' && 'OUTSTANDING PERFORMER OF THE MONTH'}
+                      </div>
+                    </div>
+
+                    {/* Achievement message */}
+                    <div className="text-sm text-gray-300 leading-relaxed">
+                      {selectedPerformer.category === 'best' && 
+                        "Your dedication, positive attitude, and outstanding performance have truly inspired us all. Thank you for going above and beyond every single day — you deserve this recognition!"}
+                      {selectedPerformer.category === 'star' && 
+                        "In recognition of your outstanding performance, dedication, and contribution to the team's success."}
+                      {selectedPerformer.category === 'outstanding' && 
+                        "Your hard work, dedication, and exceptional performance have truly shined."}
+                    </div>
+
+                    {/* Points and rank */}
+                    <div className="mt-6 flex justify-center space-x-8">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-400">{selectedPerformer.points}</div>
+                        <div className="text-sm text-gray-300">Points</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-400">#{selectedPerformer.rank}</div>
+                        <div className="text-sm text-gray-300">Rank</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Achievements */}
+                {selectedPerformer.achievements.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Achievements</h4>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {selectedPerformer.achievements.map((achievement, index) => (
+                        <span 
+                          key={index}
+                          className={`px-4 py-2 text-sm font-medium rounded-full text-white ${
+                            selectedPerformer.category === 'best' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+                            selectedPerformer.category === 'star' ? 'bg-gradient-to-r from-blue-400 to-purple-500' :
+                            'bg-gradient-to-r from-green-400 to-teal-500'
+                          }`}
+                        >
+                          {achievement}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Certificate Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+              <Button 
+                onClick={closeCertificate}
+                variant="secondary"
+                className="px-6 py-2"
+              >
+                Close
+              </Button>
+              <Button 
+                onClick={() => {
+                  // Add print functionality here
+                  window.print();
+                }}
+                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+              >
+                🖨️ Print Certificate
               </Button>
             </div>
           </div>
