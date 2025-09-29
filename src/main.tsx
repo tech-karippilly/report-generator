@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
+import { trackPageView } from './utils/analytics'
 import PublicLayout from './components/PublicLayout.tsx'
 import ProtectedRoute from './components/ProtectedRoute.tsx'
 import Home from './pages/Home.tsx'
@@ -18,6 +19,7 @@ import ResetPassword from './pages/ResetPassword.tsx'
 import EmailDebug from './pages/EmailDebug.tsx'
 import PointSystemPage from './pages/PointSystem.tsx'
 import AutomatedSessionReportPage from './pages/AutomatedSessionReport.tsx'
+import AnalyticsPage from './pages/Analytics.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 const router = createBrowserRouter([
@@ -29,6 +31,7 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> }, // Default to Home page
       { path: 'report', element: <SessionReportPage /> },
       { path: 'automated-report', element: <AutomatedSessionReportPage /> },
+      { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'daily', element: <DailySessionPage /> },
       // Protected routes (require authentication)
       {

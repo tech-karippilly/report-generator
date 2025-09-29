@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
+import { getAnalytics, type Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -21,11 +22,17 @@ export const isFirebaseConfigured = Boolean(
 export let app: FirebaseApp | null = null;
 export let db: Firestore | null = null;
 export let auth: Auth | null = null;
+export let analytics: Analytics | null = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig as Required<typeof firebaseConfig>);
   db = getFirestore(app);
   auth = getAuth(app);
+  
+  // Initialize Analytics only in browser environment
+  if (typeof window !== 'undefined') {
+    analytics = getAnalytics(app);
+  }
 } else {
   // Avoid crashing the app in dev when env is missing
   console.warn("Firebase is not configured. Add .env.local with VITE_FIREBASE_* values.");

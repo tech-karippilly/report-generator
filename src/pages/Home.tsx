@@ -2,9 +2,15 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 import iconImage from '../assets/icon.png';
+import { trackPageView } from '../utils/analytics';
+import { useEffect } from 'react';
 
 export default function Home() {
   const { currentUser } = useAuth();
+
+  useEffect(() => {
+    trackPageView('Home');
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-white to-purple-50">

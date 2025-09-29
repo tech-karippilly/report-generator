@@ -78,6 +78,16 @@ export default function Navigation() {
                 Automated Report
               </Link>
               <Link
+                to="/analytics"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/analytics') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Analytics
+              </Link>
+              <Link
                 to="/daily"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive('/daily') 
@@ -233,6 +243,16 @@ export default function Navigation() {
             }`}
           >
             Automated Report
+          </Link>
+          <Link
+            to="/analytics"
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              isActive('/analytics') 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            Analytics
           </Link>
           <Link
             to="/daily"

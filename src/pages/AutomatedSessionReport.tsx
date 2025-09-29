@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import Alert from "../components/Alert";
 import Papa from "papaparse";
+import { trackPageView, trackCsvUpload, trackCsvProcessing, trackReportGeneration, trackWhatsAppShare } from "../utils/analytics";
 
 function todayISO(): string {
   const d = new Date();
@@ -42,6 +43,9 @@ export default function AutomatedSessionReportPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
+    // Track page view
+    trackPageView('Automated Session Report');
+    
     if (!isFirebaseConfigured || !db) return;
     const unsub = onSnapshot(collection(db, "batches"), (snap) => {
       const list: Batch[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
@@ -201,6 +205,11 @@ export default function AutomatedSessionReportPage() {
     try {
       await copyToClipboard(reportText);
       openWhatsApp(reportText);
+      
+      // Track WhatsApp sharing
+      if (selectedBatch) {
+        trackWhatsAppShare(selectedBatch.code);
+      }
     } catch (error) {
       console.error("Error in copy and WhatsApp:", error);
       openWhatsApp(reportText);
@@ -225,6 +234,9 @@ export default function AutomatedSessionReportPage() {
         setAlertMsg(`CSV file "${file.name}" selected successfully.`);
         setAlertTone("success");
         setTimeout(() => setAlertMsg(""), 3000);
+        
+        // Track CSV upload
+        trackCsvUpload(file.name, file.size);
       } else {
         setAlertMsg("Please select a valid CSV file (.csv)");
         setAlertTone("error");
@@ -409,6 +421,9 @@ export default function AutomatedSessionReportPage() {
       const highConfidenceMatches = matchingResults.matched.filter(match => match.confidence >= 0.9);
       const autoPresentIds = highConfidenceMatches.map(match => match.student.id);
       setPresentIds(autoPresentIds);
+      
+      // Track CSV processing
+      trackCsvProcessing(matchingResults.matched.length, matchingResults.unmatched.length);
       
       let message = `CSV processed successfully! Found ${matchingResults.matched.length} matched participants.`;
       if (highConfidenceMatches.length > 0) {
