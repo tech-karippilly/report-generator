@@ -167,14 +167,10 @@ export default function BestPerformerPage() {
   };
 
   const showBestPerformerCelebrationPopup = () => {
-    const bestPerformer = bestPerformers.find(p => p.category === 'best');
-    if (bestPerformer) {
-      setSelectedPerformer(bestPerformer);
-      setShowBestPerformerCelebration(true);
-      setAlertMsg("🎉 Congratulations to our Best Performer!");
-      setAlertTone("success");
-      setTimeout(() => setAlertMsg(""), 5000);
-    }
+    setShowBestPerformerCelebration(true);
+    setAlertMsg("🎉 Congratulations to our Best Performer!");
+    setAlertTone("success");
+    setTimeout(() => setAlertMsg(""), 5000);
   };
 
   const closeBestPerformerCelebration = () => {
@@ -633,8 +629,8 @@ export default function BestPerformerPage() {
         </div>
       )}
 
-      {/* Best Performer Celebration Popup */}
-      {showBestPerformerCelebration && selectedPerformer && (
+      {/* Best Performer Image Display */}
+      {showBestPerformerCelebration && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
           onClick={closeBestPerformerCelebration}
@@ -659,103 +655,37 @@ export default function BestPerformerPage() {
           </div>
 
           <div 
-            className="relative bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden transform scale-100 transition-all duration-500"
+            className="relative transform scale-100 transition-all duration-500"
             onClick={(e) => e.stopPropagation()}
             style={{
               animation: 'celebrationEntrance 0.8s ease-out'
             }}
           >
-            {/* Celebration Header */}
-            <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 p-6 text-white text-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-              <div className="relative z-10">
-                <div className="text-6xl mb-2 animate-pulse">🎉</div>
-                <h2 className="text-4xl font-bold mb-2">CONGRATULATIONS!</h2>
-                <p className="text-xl opacity-90">Best Performer of the Month</p>
-              </div>
+            {/* Glow effect around image */}
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 rounded-2xl blur-lg opacity-50 scale-110"></div>
+            
+            {/* Image with celebration border */}
+            <div className="relative bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 p-4 rounded-2xl">
+              <img 
+                src={bestPerformerImage} 
+                alt="Best Performer Certificate"
+                className="w-full max-w-4xl mx-auto rounded-xl shadow-2xl transform hover:scale-105 transition-transform duration-300"
+                style={{ maxHeight: '80vh', objectFit: 'contain' }}
+              />
             </div>
-
-            {/* Certificate Image with Celebration Effects */}
-            <div className="p-8 text-center">
-              <div className="relative inline-block">
-                {/* Glow effect around image */}
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 rounded-2xl blur-lg opacity-50 scale-110"></div>
-                
-                {/* Image with celebration border */}
-                <div className="relative bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 p-2 rounded-2xl">
-                  <img 
-                    src={bestPerformerImage} 
-                    alt="Best Performer Certificate"
-                    className="w-full max-w-2xl mx-auto rounded-xl shadow-2xl transform hover:scale-105 transition-transform duration-300"
-                    style={{ maxHeight: '500px', objectFit: 'contain' }}
-                  />
-                </div>
-                
-                {/* Celebration text overlay */}
-                <div className="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-2 rounded-full font-bold text-lg animate-bounce">
-                  🏆 #1
-                </div>
-              </div>
-
-              {/* Performer Details with Celebration */}
-              <div className="mt-8 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-yellow-200">
-                <h3 className="text-4xl font-bold text-gray-900 mb-2 animate-pulse">
-                  {selectedPerformer.student.name}
-                </h3>
-                <p className="text-xl text-gray-600 mb-6">{selectedPerformer.student.batchCode}</p>
-                
-                <div className="flex justify-center space-x-12 mb-6">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-blue-600 animate-bounce">{selectedPerformer.points}</div>
-                    <div className="text-lg text-gray-600 font-semibold">Points</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-green-600 animate-bounce" style={{ animationDelay: '0.2s' }}>#{selectedPerformer.rank}</div>
-                    <div className="text-lg text-gray-600 font-semibold">Rank</div>
-                  </div>
-                </div>
-
-                {/* Achievement badges with celebration */}
-                {selectedPerformer.achievements.length > 0 && (
-                  <div>
-                    <h4 className="text-2xl font-bold text-gray-900 mb-4">🏆 Achievements</h4>
-                    <div className="flex flex-wrap gap-3 justify-center">
-                      {selectedPerformer.achievements.map((achievement, index) => (
-                        <span 
-                          key={index}
-                          className="px-6 py-3 text-lg font-bold rounded-full text-white bg-gradient-to-r from-yellow-400 to-orange-500 shadow-lg transform hover:scale-110 transition-all duration-300"
-                          style={{
-                            animationDelay: `${index * 0.1}s`,
-                            animation: 'slideInUp 0.6s ease-out forwards'
-                          }}
-                        >
-                          {achievement}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+            
+            {/* Celebration text overlay */}
+            <div className="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-3 rounded-full font-bold text-2xl animate-bounce">
+              🏆 #1
             </div>
-
-            {/* Celebration Footer */}
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 px-8 py-6 flex justify-center space-x-4">
-              <Button 
-                onClick={closeBestPerformerCelebration}
-                variant="secondary"
-                className="px-8 py-3 text-lg font-semibold bg-white text-gray-800 hover:bg-gray-100 rounded-full"
-              >
-                Close
-              </Button>
-              <Button 
-                onClick={() => {
-                  window.print();
-                }}
-                className="px-8 py-3 text-lg font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:scale-105 transition-transform"
-              >
-                🖨️ Print Certificate
-              </Button>
-            </div>
+            
+            {/* Close button */}
+            <button
+              onClick={closeBestPerformerCelebration}
+              className="absolute -top-4 -left-4 bg-red-500 hover:bg-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold transition-colors duration-300"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}
