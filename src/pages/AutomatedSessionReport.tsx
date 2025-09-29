@@ -28,6 +28,7 @@ export default function AutomatedSessionReportPage() {
     unmatched: any[];
     unmatchedStudents: any[];
   } | null>(null);
+  const [presentIds, setPresentIds] = useState<string[]>([]);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertTone, setAlertTone] = useState<"success" | "error" | "info" | "warning">("info");
 
@@ -45,6 +46,21 @@ export default function AutomatedSessionReportPage() {
     () => batches.find((b) => b.id === selectedBatchId),
     [batches, selectedBatchId]
   );
+
+  // Reset presentIds when batch changes
+  useEffect(() => {
+    if (selectedBatch) {
+      setPresentIds([]);
+    }
+  }, [selectedBatchId]);
+
+  const toggleStudent = (studentId: string) => {
+    setPresentIds((prev) =>
+      prev.includes(studentId) 
+        ? prev.filter((id) => id !== studentId) 
+        : [...prev, studentId]
+    );
+  };
 
   // CSV Processing Functions
   const handleCsvFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,7 +255,15 @@ export default function AutomatedSessionReportPage() {
       const matchingResults = matchParticipantsWithStudents(parsedData.participants, selectedBatch.students);
       setMatchingResults(matchingResults);
       
+      // Auto-mark students as present if confidence is 90% or higher
+      const highConfidenceMatches = matchingResults.matched.filter(match => match.confidence >= 0.9);
+      const autoPresentIds = highConfidenceMatches.map(match => match.student.id);
+      setPresentIds(autoPresentIds);
+      
       let message = `CSV processed successfully! Found ${matchingResults.matched.length} matched participants.`;
+      if (highConfidenceMatches.length > 0) {
+        message += ` ${highConfidenceMatches.length} students automatically marked as present (90%+ confidence).`;
+      }
       if (matchingResults.unmatched.length > 0) {
         message += ` ${matchingResults.unmatched.length} participants couldn't be matched.`;
         setAlertTone("warning");
@@ -378,15 +402,19 @@ export default function AutomatedSessionReportPage() {
                             <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
                               <summary className="cursor-pointer font-medium text-gray-700">View Matched Participants</summary>
                               <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                                {matchingResults.matched.map((match, index) => (
-                                  <div key={index} className="text-gray-600">
-                                    <span className="font-medium">"{match.participant.fullName}"</span> →
-                                    <span className="font-medium"> "{match.student.name}"</span>
-                                    <span className="ml-2 text-green-600">
-                                      ({match.matchType} - {(match.confidence * 100).toFixed(0)}%)
-                                    </span>
-                                  </div>
-                                ))}
+                                {matchingResults.matched.map((match, index) => {
+                                  const isAutoPresent = match.confidence >= 0.9;
+                                  return (
+                                    <div key={index} className="text-gray-600">
+                                      <span className="font-medium">"{match.participant.fullName}"</span> →
+                                      <span className="font-medium"> "{match.student.name}"</span>
+                                      <span className={`ml-2 ${isAutoPresent ? 'text-green-600 font-bold' : 'text-blue-600'}`}>
+                                        ({match.matchType} - {(match.confidence * 100).toFixed(0)}%)
+                                        {isAutoPresent && ' ✅ AUTO-PRESENT'}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </details>
                           )}
@@ -411,6 +439,60 @@ export default function AutomatedSessionReportPage() {
               </div>
             </div>
           </div>
+
+          {/* Attendance Section - Manual Editing */}
+          {selectedBatch && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Attendance ({presentIds.length} present, {selectedBatch.students.length - presentIds.length} absent)
+                </h3>
+                <div className="text-sm text-gray-500">
+                  💡 Students with 90%+ confidence are auto-marked as present
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                {selectedBatch.students.map((s) => {
+                  const isPresent = presentIds.includes(s.id);
+                  
+                  return (
+                    <div key={s.id} className={`p-3 rounded-lg border-2 transition-all ${
+                      isPresent 
+                        ? 'bg-green-50 border-green-200 shadow-md' 
+                        : 'bg-gray-50 border-gray-200 hover:shadow-md'
+                    }`}>
+                      <div className="mb-3">
+                        <div className="font-medium text-gray-900 text-sm truncate">{s.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                      </div>
+                      <div className="mb-2">
+                        {isPresent && (
+                          <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                            ✅ Present
+                          </span>
+                        )}
+                        {!isPresent && (
+                          <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                            ❌ Absent
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleStudent(s.id)}
+                        className={`w-full px-3 py-2 text-xs rounded border transition-colors ${
+                          isPresent 
+                            ? 'bg-red-500 text-white border-red-500 hover:bg-red-600' 
+                            : 'bg-green-500 text-white border-green-500 hover:bg-green-600'
+                        }`}
+                      >
+                        {isPresent ? 'Mark Absent' : 'Mark Present'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
