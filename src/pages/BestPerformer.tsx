@@ -4,6 +4,9 @@ import { db, isFirebaseConfigured } from '../firebase';
 import { trackPageView } from '../utils/analytics';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
+import bestPerformerImage from '../assets/images/best_perfomer.jpeg';
+import starPerformerImage from '../assets/images/star_perfomer.jpeg';
+import outstandingPerformerImage from '../assets/images/out_standing_perfomer.jpeg';
 
 interface Student {
   id: string;
@@ -85,6 +88,14 @@ export default function BestPerformerPage() {
     if (rank === 1) return 'best';
     if (rank <= 3) return 'star';
     return 'outstanding';
+  };
+
+  const getCategoryImage = (category: 'best' | 'star' | 'outstanding'): string => {
+    switch (category) {
+      case 'best': return bestPerformerImage;
+      case 'star': return starPerformerImage;
+      case 'outstanding': return outstandingPerformerImage;
+    }
   };
 
   const generateAchievements = (points: number, rank: number, category: 'best' | 'star' | 'outstanding'): string[] => {
@@ -520,79 +531,55 @@ export default function BestPerformerPage() {
                   <p className="text-lg text-gray-600">BCR69 GROUP-2</p>
                 </div>
 
-                {/* Certificate Design */}
-                <div className="relative bg-black rounded-2xl p-8 text-white mb-6 overflow-hidden">
-                  {/* Background decorations */}
-                  <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-yellow-400 to-orange-500 opacity-20 rounded-full -translate-x-16 -translate-y-16"></div>
-                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-yellow-400 to-orange-500 opacity-20 rounded-full translate-x-16 translate-y-16"></div>
-                  
-                  {/* Certificate content */}
-                  <div className="relative z-10">
-                    <div className="text-center mb-6">
-                      <h4 className="text-sm text-yellow-300 mb-2">BCR69 GROUP-2</h4>
-                      <h5 className="text-2xl text-yellow-400 font-bold mb-4">CONGRATULATIONS</h5>
-                    </div>
-
-                    {/* Name banner */}
-                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg p-4 mb-6">
-                      <h6 className="text-3xl font-bold text-black">
-                        {selectedPerformer.student.name.toUpperCase()}
-                      </h6>
-                    </div>
-
-                    {/* Title */}
-                    <div className="mb-6">
-                      <div className="text-xl font-bold text-yellow-400">
-                        {selectedPerformer.category === 'best' && 'BEST PERFORMER OF THE MONTH'}
-                        {selectedPerformer.category === 'star' && 'STAR PERFORMER OF THE MONTH'}
-                        {selectedPerformer.category === 'outstanding' && 'OUTSTANDING PERFORMER OF THE MONTH'}
-                      </div>
-                    </div>
-
-                    {/* Achievement message */}
-                    <div className="text-sm text-gray-300 leading-relaxed">
-                      {selectedPerformer.category === 'best' && 
-                        "Your dedication, positive attitude, and outstanding performance have truly inspired us all. Thank you for going above and beyond every single day — you deserve this recognition!"}
-                      {selectedPerformer.category === 'star' && 
-                        "In recognition of your outstanding performance, dedication, and contribution to the team's success."}
-                      {selectedPerformer.category === 'outstanding' && 
-                        "Your hard work, dedication, and exceptional performance have truly shined."}
-                    </div>
-
-                    {/* Points and rank */}
-                    <div className="mt-6 flex justify-center space-x-8">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400">{selectedPerformer.points}</div>
-                        <div className="text-sm text-gray-300">Points</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400">#{selectedPerformer.rank}</div>
-                        <div className="text-sm text-gray-300">Rank</div>
-                      </div>
-                    </div>
-                  </div>
+                {/* Certificate Image */}
+                <div className="mb-6">
+                  <img 
+                    src={getCategoryImage(selectedPerformer.category)} 
+                    alt={`${selectedPerformer.category} certificate`}
+                    className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl"
+                    style={{ maxHeight: '500px', objectFit: 'contain' }}
+                  />
                 </div>
 
-                {/* Achievements */}
-                {selectedPerformer.achievements.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Achievements</h4>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {selectedPerformer.achievements.map((achievement, index) => (
-                        <span 
-                          key={index}
-                          className={`px-4 py-2 text-sm font-medium rounded-full text-white ${
-                            selectedPerformer.category === 'best' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
-                            selectedPerformer.category === 'star' ? 'bg-gradient-to-r from-blue-400 to-purple-500' :
-                            'bg-gradient-to-r from-green-400 to-teal-500'
-                          }`}
-                        >
-                          {achievement}
-                        </span>
-                      ))}
+                {/* Performer Details */}
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                    {selectedPerformer.student.name}
+                  </h4>
+                  <p className="text-gray-600 mb-4">{selectedPerformer.student.batchCode}</p>
+                  
+                  <div className="flex justify-center space-x-8 mb-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-600">{selectedPerformer.points}</div>
+                      <div className="text-sm text-gray-600">Points</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-600">#{selectedPerformer.rank}</div>
+                      <div className="text-sm text-gray-600">Rank</div>
                     </div>
                   </div>
-                )}
+
+                  {/* Achievements */}
+                  {selectedPerformer.achievements.length > 0 && (
+                    <div>
+                      <h5 className="text-lg font-semibold text-gray-900 mb-3">Achievements</h5>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {selectedPerformer.achievements.map((achievement, index) => (
+                          <span 
+                            key={index}
+                            className={`px-4 py-2 text-sm font-medium rounded-full text-white ${
+                              selectedPerformer.category === 'best' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+                              selectedPerformer.category === 'star' ? 'bg-gradient-to-r from-blue-400 to-purple-500' :
+                              'bg-gradient-to-r from-green-400 to-teal-500'
+                            }`}
+                          >
+                            {achievement}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
