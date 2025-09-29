@@ -30,6 +30,13 @@ export default function AutomatedSessionReportPage() {
   } | null>(null);
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [alternativeSessionIds, setAlternativeSessionIds] = useState<string[]>([]);
+  const [dateISO, setDateISO] = useState<string>(todayISO());
+  const [activityTitle, setActivityTitle] = useState<string>("Today's Activity – Roleplay");
+  const [activityDescription, setActivityDescription] = useState<string>("");
+  const [tldvUrl, setTldvUrl] = useState<string>("");
+  const [meetUrl, setMeetUrl] = useState<string>("");
+  const [meetListUrl, setMeetListUrl] = useState<string>("");
+  const [reportedBy, setReportedBy] = useState<string>("");
   const [alertMsg, setAlertMsg] = useState("");
   const [alertTone, setAlertTone] = useState<"success" | "error" | "info" | "warning">("info");
 
@@ -48,6 +55,15 @@ export default function AutomatedSessionReportPage() {
     [batches, selectedBatchId]
   );
 
+  // Set reportedBy from logged-in user
+  useEffect(() => {
+    if (currentUser && !reportedBy) {
+      // Use displayName if available, otherwise use email
+      const userName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown User';
+      setReportedBy(userName);
+    }
+  }, [currentUser, reportedBy]);
+
   // Reset attendance when batch changes
   useEffect(() => {
     if (selectedBatch) {
@@ -55,6 +71,13 @@ export default function AutomatedSessionReportPage() {
       setAlternativeSessionIds([]);
     }
   }, [selectedBatchId]);
+
+  // Set default meet URL when batch changes
+  useEffect(() => {
+    if (selectedBatch?.defaultMeetUrl && !meetUrl) {
+      setMeetUrl(selectedBatch.defaultMeetUrl);
+    }
+  }, [selectedBatch?.defaultMeetUrl]);
 
   const toggleStudent = (studentId: string, status: 'present' | 'alternative_session') => {
     if (status === 'present') {
@@ -83,67 +106,107 @@ export default function AutomatedSessionReportPage() {
     setAlternativeSessionIds((prev) => prev.filter((id) => id !== studentId));
   };
 
-  // Report Preview Function
+  // Report Preview Function - Same format as SessionReport
   const generateReportPreview = () => {
     if (!selectedBatch) return "";
 
     const absent = selectedBatch.students
       .filter((s) => !presentIds.includes(s.id) && !alternativeSessionIds.includes(s.id))
-      .map((s) => s);
+      .map((s) => s.id);
 
-    const present = selectedBatch.students
+    const presentNames = selectedBatch.students
       .filter((s) => presentIds.includes(s.id))
-      .map((s) => s);
+      .map((s) => s.name);
 
-    const alternativeSession = selectedBatch.students
+    const anotherSessionNames = selectedBatch.students
       .filter((s) => alternativeSessionIds.includes(s.id))
-      .map((s) => s);
+      .map((s) => s.name);
 
-    const today = new Date().toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+    const absentNames = selectedBatch.students
+      .filter((s) => absent.includes(s.id))
+      .map((s) => s.name);
 
-    let report = `📊 *Session Report - ${today}*\n\n`;
-    report += `🏫 *Batch:* ${selectedBatch.code}\n`;
-    if (selectedBatch.groupName) {
-      report += `👥 *Group:* ${selectedBatch.groupName}\n`;
+    const trainerNames = selectedBatch.trainers.map(t => t.name).join(" , ");
+
+    const lines: string[] = [];
+    lines.push(`Communication Session Report`);
+    lines.push(`-------------------------------------`);
+    lines.push(`Batch: ${selectedBatch.code}${selectedBatch.groupName ? ` - ${selectedBatch.groupName}` : ''}`);
+    lines.push(`📅 Date: ${new Date(dateISO).toLocaleDateString("en-GB")}`);
+    lines.push(`--------------------------------------------`);
+    lines.push(`Trainers:- ${trainerNames}.`);
+    lines.push("");
+    lines.push(`Coordinators :`);
+    selectedBatch.coordinators.forEach((c, i) => lines.push(`${i + 1}.\t${c.name}`));
+    lines.push(` ---------------------------------`);
+    if (tldvUrl) lines.push(`📌 Tldv link: ${tldvUrl}`);
+    if (meetUrl) lines.push(`🔗 Session Link: ${meetUrl}`);
+    if (meetListUrl) lines.push(`📋 Meet List Link: ${meetListUrl}`);
+    lines.push("");
+    lines.push(` 📝 Report:`);
+    lines.push("");
+    lines.push(activityTitle);
+    if (activityDescription) {
+      lines.push("");
+      lines.push(activityDescription);
     }
-    report += `\n`;
-
-    if (present.length > 0) {
-      report += `✅ *Present (${present.length}):*\n`;
-      present.forEach(student => {
-        report += `• ${student.name}\n`;
-      });
-      report += `\n`;
+    lines.push("");
+    lines.push(`✅ Present :(${presentNames.length})`);
+    lines.push(`---------------------------`);
+    presentNames.forEach((name, index) => lines.push(`${index + 1}.\t${name}`));
+    lines.push("");
+    
+    if (anotherSessionNames.length > 0) {
+      lines.push(`🔄 Attending Another Session (${anotherSessionNames.length})`);
+      lines.push(`----------------------------------------`);
+      anotherSessionNames.forEach((name, index) => lines.push(`${index + 1}.\t${name}`));
+      lines.push("");
     }
+    
+    lines.push(`❌ Absentees (${absentNames.length})`);
+    lines.push(`-------------------`);
+    absentNames.forEach((name, index) => lines.push(`${index + 1}.\t${name}`));
+    lines.push("");
+    lines.push(`-------------------------------`);
+    lines.push(`🖊reported by : ${reportedBy}`);
+    
+    return lines.join("\n");
+  };
 
-    if (alternativeSession.length > 0) {
-      report += `🔄 *Attending Alternative Session (${alternativeSession.length}):*\n`;
-      alternativeSession.forEach(student => {
-        report += `• ${student.name}\n`;
-      });
-      report += `\n`;
+  // Copy and WhatsApp Functions
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setAlertMsg("Report copied to clipboard!");
+      setAlertTone("success");
+      setTimeout(() => setAlertMsg(""), 3000);
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+      setAlertMsg("Failed to copy to clipboard. Please try again.");
+      setAlertTone("error");
+      setTimeout(() => setAlertMsg(""), 3000);
     }
+  };
 
-    if (absent.length > 0) {
-      report += `❌ *Absent (${absent.length}):*\n`;
-      absent.forEach(student => {
-        report += `• ${student.name}\n`;
-      });
-      report += `\n`;
+  const openWhatsApp = (text: string) => {
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleCopyAndOpenWhatsApp = async () => {
+    const reportText = generateReportPreview();
+    try {
+      await copyToClipboard(reportText);
+      openWhatsApp(reportText);
+    } catch (error) {
+      console.error("Error in copy and WhatsApp:", error);
+      openWhatsApp(reportText);
     }
+  };
 
-    report += `📈 *Summary:*\n`;
-    report += `• Total Students: ${selectedBatch.students.length}\n`;
-    report += `• Present: ${present.length}\n`;
-    report += `• Alternative Session: ${alternativeSession.length}\n`;
-    report += `• Absent: ${absent.length}\n`;
-
-    return report;
+  const handleCopyOnly = async () => {
+    const reportText = generateReportPreview();
+    await copyToClipboard(reportText);
   };
 
   // CSV Processing Functions
@@ -434,10 +497,89 @@ export default function AutomatedSessionReportPage() {
                   </select>
                 </div>
 
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date *
+                  </label>
+                  <input 
+                    type="date" 
+                    value={dateISO} 
+                    onChange={(e) => setDateISO(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Activity Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Activity Title *
+                  </label>
+                  <input 
+                    value={activityTitle} 
+                    onChange={(e) => setActivityTitle(e.target.value)} 
+                    placeholder="Today's Activity – Roleplay"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Activity Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Activity Description
+                  </label>
+                  <textarea 
+                    value={activityDescription} 
+                    onChange={(e) => setActivityDescription(e.target.value)} 
+                    placeholder="Describe the activity..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* TLdV URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    TLdV URL
+                  </label>
+                  <input 
+                    value={tldvUrl} 
+                    onChange={(e) => setTldvUrl(e.target.value)} 
+                    placeholder="https://tldv.io/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Meet URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meet URL
+                  </label>
+                  <input 
+                    value={meetUrl} 
+                    onChange={(e) => setMeetUrl(e.target.value)} 
+                    placeholder="https://meet.google.com/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Meet List URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meet List URL
+                  </label>
+                  <input 
+                    value={meetListUrl} 
+                    onChange={(e) => setMeetListUrl(e.target.value)} 
+                    placeholder="https://docs.google.com/spreadsheets/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
                 {/* CSV File Upload */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meeting Participants CSV *
+                    Meeting Participants CSV
                   </label>
                   <div className="space-y-3">
                     <input
@@ -523,6 +665,22 @@ export default function AutomatedSessionReportPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Reported By */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reported By *
+                  </label>
+                  <input 
+                    value={reportedBy} 
+                    onChange={(e) => setReportedBy(e.target.value)} 
+                    placeholder="Enter reporter name"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-filled with your name from your account
+                  </p>
+                </div>
               </div>
 
               {/* Right Column - Report Preview */}
@@ -541,6 +699,28 @@ export default function AutomatedSessionReportPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Action Buttons */}
+                {selectedBatch && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={handleCopyOnly}
+                        className="w-full"
+                      >
+                        Copy Report
+                      </Button>
+                      <Button 
+                        onClick={handleCopyAndOpenWhatsApp}
+                        variant="secondary"
+                        className="w-full"
+                      >
+                        Copy & Open WhatsApp
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
