@@ -17,6 +17,7 @@ import ForgotPassword from './pages/ForgotPassword.tsx'
 import ResetPassword from './pages/ResetPassword.tsx'
 import EmailDebug from './pages/EmailDebug.tsx'
 import PointSystemPage from './pages/PointSystem.tsx'
+import AutomatedSessionReportPage from './pages/AutomatedSessionReport.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 const router = createBrowserRouter([
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> }, // Default to Home page
       { path: 'report', element: <SessionReportPage /> },
+      { path: 'automated-report', element: <AutomatedSessionReportPage /> },
       { path: 'daily', element: <DailySessionPage /> },
       // Protected routes (require authentication)
       {
