@@ -29,6 +29,7 @@ export default function AutomatedSessionReportPage() {
     unmatchedStudents: any[];
   } | null>(null);
   const [presentIds, setPresentIds] = useState<string[]>([]);
+  const [alternativeSessionIds, setAlternativeSessionIds] = useState<string[]>([]);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertTone, setAlertTone] = useState<"success" | "error" | "info" | "warning">("info");
 
@@ -47,19 +48,102 @@ export default function AutomatedSessionReportPage() {
     [batches, selectedBatchId]
   );
 
-  // Reset presentIds when batch changes
+  // Reset attendance when batch changes
   useEffect(() => {
     if (selectedBatch) {
       setPresentIds([]);
+      setAlternativeSessionIds([]);
     }
   }, [selectedBatchId]);
 
-  const toggleStudent = (studentId: string) => {
-    setPresentIds((prev) =>
-      prev.includes(studentId) 
-        ? prev.filter((id) => id !== studentId) 
-        : [...prev, studentId]
-    );
+  const toggleStudent = (studentId: string, status: 'present' | 'alternative_session') => {
+    if (status === 'present') {
+      // Toggle present status
+      setPresentIds((prev) =>
+        prev.includes(studentId) 
+          ? prev.filter((id) => id !== studentId) 
+          : [...prev, studentId]
+      );
+      // Remove from alternative session if present
+      setAlternativeSessionIds((prev) => prev.filter((id) => id !== studentId));
+    } else if (status === 'alternative_session') {
+      // Toggle alternative session status
+      setAlternativeSessionIds((prev) =>
+        prev.includes(studentId) 
+          ? prev.filter((id) => id !== studentId) 
+          : [...prev, studentId]
+      );
+      // Remove from present if attending alternative session
+      setPresentIds((prev) => prev.filter((id) => id !== studentId));
+    }
+  };
+
+  const markAbsent = (studentId: string) => {
+    setPresentIds((prev) => prev.filter((id) => id !== studentId));
+    setAlternativeSessionIds((prev) => prev.filter((id) => id !== studentId));
+  };
+
+  // Report Preview Function
+  const generateReportPreview = () => {
+    if (!selectedBatch) return "";
+
+    const absent = selectedBatch.students
+      .filter((s) => !presentIds.includes(s.id) && !alternativeSessionIds.includes(s.id))
+      .map((s) => s);
+
+    const present = selectedBatch.students
+      .filter((s) => presentIds.includes(s.id))
+      .map((s) => s);
+
+    const alternativeSession = selectedBatch.students
+      .filter((s) => alternativeSessionIds.includes(s.id))
+      .map((s) => s);
+
+    const today = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    let report = `📊 *Session Report - ${today}*\n\n`;
+    report += `🏫 *Batch:* ${selectedBatch.code}\n`;
+    if (selectedBatch.groupName) {
+      report += `👥 *Group:* ${selectedBatch.groupName}\n`;
+    }
+    report += `\n`;
+
+    if (present.length > 0) {
+      report += `✅ *Present (${present.length}):*\n`;
+      present.forEach(student => {
+        report += `• ${student.name}\n`;
+      });
+      report += `\n`;
+    }
+
+    if (alternativeSession.length > 0) {
+      report += `🔄 *Attending Alternative Session (${alternativeSession.length}):*\n`;
+      alternativeSession.forEach(student => {
+        report += `• ${student.name}\n`;
+      });
+      report += `\n`;
+    }
+
+    if (absent.length > 0) {
+      report += `❌ *Absent (${absent.length}):*\n`;
+      absent.forEach(student => {
+        report += `• ${student.name}\n`;
+      });
+      report += `\n`;
+    }
+
+    report += `📈 *Summary:*\n`;
+    report += `• Total Students: ${selectedBatch.students.length}\n`;
+    report += `• Present: ${present.length}\n`;
+    report += `• Alternative Session: ${alternativeSession.length}\n`;
+    report += `• Absent: ${absent.length}\n`;
+
+    return report;
   };
 
   // CSV Processing Functions
@@ -321,118 +405,139 @@ export default function AutomatedSessionReportPage() {
 
   return (
     <div className="min-h-screen w-full bg-gray-50 p-4">
-      <div className="w-full max-w-4xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto">
         <div className="space-y-6">
           {alertMsg && <Alert tone={alertTone}>{alertMsg}</Alert>}
 
           <div className="bg-white rounded-lg shadow-md p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-6">Automated Session Report</h1>
             
-            <div className="space-y-6">
-              {/* Batch Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Batch *
-                </label>
-                <select 
-                  value={selectedBatchId} 
-                  onChange={(e) => setSelectedBatchId(e.target.value)} 
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Choose a batch...</option>
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.code} {b.groupName && `- ${b.groupName}`}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Controls */}
+              <div className="space-y-6">
+                {/* Batch Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Batch *
+                  </label>
+                  <select 
+                    value={selectedBatchId} 
+                    onChange={(e) => setSelectedBatchId(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a batch...</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.code} {b.groupName && `- ${b.groupName}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* CSV File Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meeting Participants CSV *
+                  </label>
+                  <div className="space-y-3">
+                    <input
+                      id="csvFile"
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvFileUpload}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {csvFile && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-green-600">📄</span>
+                            <span className="text-sm font-medium text-green-800">{csvFile.name}</span>
+                            <span className="text-xs text-green-600">
+                              ({(csvFile.size / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removeCsvFile}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        
+                        {selectedBatch && (
+                          <Button
+                            onClick={processCsvFile}
+                            disabled={isProcessingCsv}
+                            className="w-full px-4 py-2 text-sm"
+                          >
+                            {isProcessingCsv ? 'Processing...' : 'Process CSV & Show Results'}
+                          </Button>
+                        )}
+                        
+                        {matchingResults && (
+                          <div className="space-y-2">
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="text-sm text-blue-800">
+                                <strong>Matching Results:</strong> {matchingResults.matched.length} matched, {matchingResults.unmatched.length} unmatched
+                              </div>
+                            </div>
+                            
+                            {matchingResults.matched.length > 0 && (
+                              <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                                <summary className="cursor-pointer font-medium text-gray-700">View Matched Participants</summary>
+                                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                                  {matchingResults.matched.map((match, index) => {
+                                    const isAutoPresent = match.confidence >= 0.9;
+                                    return (
+                                      <div key={index} className="text-gray-600">
+                                        <span className="font-medium">"{match.participant.fullName}"</span> →
+                                        <span className="font-medium"> "{match.student.name}"</span>
+                                        <span className={`ml-2 ${isAutoPresent ? 'text-green-600 font-bold' : 'text-blue-600'}`}>
+                                          ({match.matchType} - {(match.confidence * 100).toFixed(0)}%)
+                                          {isAutoPresent && ' ✅ AUTO-PRESENT'}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
+                            )}
+                            
+                            {matchingResults.unmatched.length > 0 && (
+                              <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                                <summary className="cursor-pointer font-medium text-gray-700">View Unmatched Participants</summary>
+                                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                                  {matchingResults.unmatched.map((participant, index) => (
+                                    <div key={index} className="text-gray-600">
+                                      <span className="font-medium">"{participant.fullName}"</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* CSV File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Meeting Participants CSV *
-                </label>
-                <div className="space-y-3">
-                  <input
-                    id="csvFile"
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCsvFileUpload}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  {csvFile && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-green-600">📄</span>
-                          <span className="text-sm font-medium text-green-800">{csvFile.name}</span>
-                          <span className="text-xs text-green-600">
-                            ({(csvFile.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={removeCsvFile}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      
-                      {selectedBatch && (
-                        <Button
-                          onClick={processCsvFile}
-                          disabled={isProcessingCsv}
-                          className="w-full px-4 py-2 text-sm"
-                        >
-                          {isProcessingCsv ? 'Processing...' : 'Process CSV & Show Results'}
-                        </Button>
-                      )}
-                      
-                      {matchingResults && (
-                        <div className="space-y-2">
-                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="text-sm text-blue-800">
-                              <strong>Matching Results:</strong> {matchingResults.matched.length} matched, {matchingResults.unmatched.length} unmatched
-                            </div>
-                          </div>
-                          
-                          {matchingResults.matched.length > 0 && (
-                            <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
-                              <summary className="cursor-pointer font-medium text-gray-700">View Matched Participants</summary>
-                              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                                {matchingResults.matched.map((match, index) => {
-                                  const isAutoPresent = match.confidence >= 0.9;
-                                  return (
-                                    <div key={index} className="text-gray-600">
-                                      <span className="font-medium">"{match.participant.fullName}"</span> →
-                                      <span className="font-medium"> "{match.student.name}"</span>
-                                      <span className={`ml-2 ${isAutoPresent ? 'text-green-600 font-bold' : 'text-blue-600'}`}>
-                                        ({match.matchType} - {(match.confidence * 100).toFixed(0)}%)
-                                        {isAutoPresent && ' ✅ AUTO-PRESENT'}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </details>
-                          )}
-                          
-                          {matchingResults.unmatched.length > 0 && (
-                            <details className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
-                              <summary className="cursor-pointer font-medium text-gray-700">View Unmatched Participants</summary>
-                              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                                {matchingResults.unmatched.map((participant, index) => (
-                                  <div key={index} className="text-gray-600">
-                                    <span className="font-medium">"{participant.fullName}"</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                        </div>
-                      )}
+              {/* Right Column - Report Preview */}
+              <div className="space-y-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Preview</h3>
+                  {selectedBatch ? (
+                    <div className="bg-white rounded border p-4 max-h-96 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
+                        {generateReportPreview()}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-sm italic">
+                      Select a batch to see report preview
                     </div>
                   )}
                 </div>
@@ -445,7 +550,7 @@ export default function AutomatedSessionReportPage() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Attendance ({presentIds.length} present, {selectedBatch.students.length - presentIds.length} absent)
+                  Attendance ({presentIds.length} present, {alternativeSessionIds.length} alternative session, {selectedBatch.students.length - presentIds.length - alternativeSessionIds.length} absent)
                 </h3>
                 <div className="text-sm text-gray-500">
                   💡 Students with 90%+ confidence are auto-marked as present
@@ -454,11 +559,15 @@ export default function AutomatedSessionReportPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
                 {selectedBatch.students.map((s) => {
                   const isPresent = presentIds.includes(s.id);
+                  const isAlternativeSession = alternativeSessionIds.includes(s.id);
+                  const isAbsent = !isPresent && !isAlternativeSession;
                   
                   return (
                     <div key={s.id} className={`p-3 rounded-lg border-2 transition-all ${
                       isPresent 
                         ? 'bg-green-50 border-green-200 shadow-md' 
+                        : isAlternativeSession
+                        ? 'bg-blue-50 border-blue-200 shadow-md'
                         : 'bg-gray-50 border-gray-200 hover:shadow-md'
                     }`}>
                       <div className="mb-3">
@@ -471,22 +580,49 @@ export default function AutomatedSessionReportPage() {
                             ✅ Present
                           </span>
                         )}
-                        {!isPresent && (
+                        {isAlternativeSession && (
+                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            🔄 Alternative Session
+                          </span>
+                        )}
+                        {isAbsent && (
                           <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
                             ❌ Absent
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => toggleStudent(s.id)}
-                        className={`w-full px-3 py-2 text-xs rounded border transition-colors ${
-                          isPresent 
-                            ? 'bg-red-500 text-white border-red-500 hover:bg-red-600' 
-                            : 'bg-green-500 text-white border-green-500 hover:bg-green-600'
-                        }`}
-                      >
-                        {isPresent ? 'Mark Absent' : 'Mark Present'}
-                      </button>
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => toggleStudent(s.id, 'present')}
+                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                            isPresent 
+                              ? 'bg-green-500 text-white border-green-500' 
+                              : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
+                          }`}
+                        >
+                          {isPresent ? '✓ Present' : 'Mark Present'}
+                        </button>
+                        <button
+                          onClick={() => toggleStudent(s.id, 'alternative_session')}
+                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                            isAlternativeSession 
+                              ? 'bg-blue-500 text-white border-blue-500' 
+                              : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
+                          }`}
+                        >
+                          {isAlternativeSession ? '✓ Alt Session' : 'Alt Session'}
+                        </button>
+                        <button
+                          onClick={() => markAbsent(s.id)}
+                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                            isAbsent 
+                              ? 'bg-red-500 text-white border-red-500' 
+                              : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                          }`}
+                        >
+                          {isAbsent ? '✓ Absent' : 'Mark Absent'}
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
