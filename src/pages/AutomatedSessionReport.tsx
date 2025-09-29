@@ -190,7 +190,9 @@ export default function AutomatedSessionReportPage() {
   };
 
   const openWhatsApp = (text: string) => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    // Use the specific WhatsApp group link
+    const groupLink = 'https://chat.whatsapp.com/G9GQeOnI0XHEwDsNriWGNS';
+    const whatsappUrl = `${groupLink}?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -717,8 +719,11 @@ export default function AutomatedSessionReportPage() {
                         variant="secondary"
                         className="w-full"
                       >
-                        Copy & Open WhatsApp
+                        Copy & Send to Group
                       </Button>
+                      <div className="text-xs text-gray-500 text-center">
+                        📱 Will open WhatsApp group: TEAM 2 BCR69
+                      </div>
                     </div>
                   </div>
                 )}
