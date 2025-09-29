@@ -1,32 +1,11 @@
 import { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase';
 import { trackPageView } from '../utils/analytics';
 
-interface UsageData {
-  id: string;
-  action: string;
-  timestamp: string;
-  details?: Record<string, any>;
-}
-
 export default function AnalyticsPage() {
-  const [usageData, setUsageData] = useState<UsageData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     trackPageView('Analytics Dashboard');
-    
-    if (!isFirebaseConfigured || !db) {
-      setLoading(false);
-      return;
-    }
-
-    // Note: This is a simplified example. In a real implementation, you would need to:
-    // 1. Set up Firebase Analytics data export to Firestore
-    // 2. Or use Firebase Analytics dashboard directly
-    // 3. Or implement custom event logging to Firestore
-    
     setLoading(false);
   }, []);
 

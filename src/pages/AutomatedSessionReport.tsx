@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
-import type { Batch, SessionReport, OtherBatchStudent, CombinedSessionStudent } from "../types";
+import { collection, onSnapshot } from "firebase/firestore";
+import type { Batch } from "../types";
 import { db, isFirebaseConfigured } from "../firebase";
-import { buildWhatsappReportText } from "../utils/formatReport";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import Alert from "../components/Alert";
 import Papa from "papaparse";
-import { trackPageView, trackCsvUpload, trackCsvProcessing, trackReportGeneration, trackWhatsAppShare } from "../utils/analytics";
+import { trackPageView, trackCsvUpload, trackCsvProcessing, trackWhatsAppShare } from "../utils/analytics";
 
 function todayISO(): string {
   const d = new Date();
@@ -22,13 +21,7 @@ export default function AutomatedSessionReportPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvData, setCsvData] = useState<any[]>([]);
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
-  const [matchingResults, setMatchingResults] = useState<{
-    matched: Array<{participant: any, student: any, confidence: number, matchType: string}>;
-    unmatched: any[];
-    unmatchedStudents: any[];
-  } | null>(null);
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [alternativeSessionIds, setAlternativeSessionIds] = useState<string[]>([]);
   const [dateISO, setDateISO] = useState<string>(todayISO());
@@ -247,8 +240,6 @@ export default function AutomatedSessionReportPage() {
 
   const removeCsvFile = () => {
     setCsvFile(null);
-    setCsvData([]);
-    setMatchingResults(null);
     const fileInput = document.getElementById('csvFile') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };
@@ -293,7 +284,7 @@ export default function AutomatedSessionReportPage() {
     return maxLength === 0 ? 1 : 1 - (distance / maxLength);
   };
 
-  const compareNames = (participantName: string, studentName: string) => {
+  const compareNames = (participantName: string, studentName: string): { confidence: number, matchType: string } | null => {
     const normalizedParticipant = normalizeName(participantName);
     const normalizedStudent = normalizeName(studentName);
 
@@ -332,7 +323,7 @@ export default function AutomatedSessionReportPage() {
     const usedStudentIds = new Set<string>();
 
     participants.forEach(participant => {
-      let bestMatch = null;
+      let bestMatch: { confidence: number, matchType: string, student: any } | null = null;
       let bestConfidence = 0;
 
       students.forEach(student => {
@@ -346,13 +337,14 @@ export default function AutomatedSessionReportPage() {
       });
 
       if (bestMatch && bestConfidence > 0.6) {
+        const match = bestMatch as { confidence: number, matchType: string, student: any };
         matched.push({
           participant,
-          student: bestMatch.student,
-          confidence: bestMatch.confidence,
-          matchType: bestMatch.matchType
+          student: match.student,
+          confidence: match.confidence,
+          matchType: match.matchType
         });
-        usedStudentIds.add(bestMatch.student.id);
+        usedStudentIds.add(match.student.id);
       } else {
         unmatched.push(participant);
       }
@@ -407,7 +399,6 @@ export default function AutomatedSessionReportPage() {
       console.log('Participants:', parsedData.participants);
       console.log('========================');
       
-      setCsvData(parsedData.participants);
       
       console.log('=== STUDENTS LIST FOR SELECTED BATCH ===');
       console.log('Batch:', selectedBatch.code);
@@ -415,7 +406,6 @@ export default function AutomatedSessionReportPage() {
       console.log('========================================');
       
       const matchingResults = matchParticipantsWithStudents(parsedData.participants, selectedBatch.students);
-      setMatchingResults(matchingResults);
       
       // Auto-mark students as present if confidence is 90% or higher
       const highConfidenceMatches = matchingResults.matched.filter(match => match.confidence >= 0.9);
@@ -448,32 +438,6 @@ export default function AutomatedSessionReportPage() {
     }
   };
 
-  const parseJoinTime = (timeStr: string): Date | null => {
-    if (!timeStr) return null;
-    
-    try {
-      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
-      if (timeMatch) {
-        const [, hours, minutes, seconds = '0', period] = timeMatch;
-        let hour24 = parseInt(hours);
-        
-        if (period.toUpperCase() === 'PM' && hour24 !== 12) {
-          hour24 += 12;
-        } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
-          hour24 = 0;
-        }
-        
-        const joinTime = new Date();
-        joinTime.setHours(hour24, parseInt(minutes), parseInt(seconds), 0);
-        return joinTime;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error parsing time:', error);
-      return null;
-    }
-  };
 
   if (!isFirebaseConfigured) {
     return (
