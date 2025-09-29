@@ -39,6 +39,7 @@ export default function AutomatedSessionReportPage() {
   const [reportedBy, setReportedBy] = useState<string>("");
   const [alertMsg, setAlertMsg] = useState("");
   const [alertTone, setAlertTone] = useState<"success" | "error" | "info" | "warning">("info");
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
     if (!isFirebaseConfigured || !db) return;
@@ -728,85 +729,183 @@ export default function AutomatedSessionReportPage() {
           {/* Attendance Section - Manual Editing */}
           {selectedBatch && (
             <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Attendance ({presentIds.length} present, {alternativeSessionIds.length} alternative session, {selectedBatch.students.length - presentIds.length - alternativeSessionIds.length} absent)
-                </h3>
-                <div className="text-sm text-gray-500">
-                  💡 Students with 90%+ confidence are auto-marked as present
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Attendance ({presentIds.length} present, {alternativeSessionIds.length} alternative session, {selectedBatch.students.length - presentIds.length - alternativeSessionIds.length} absent)
+                  </h3>
+                  <div className="text-sm text-gray-500 mt-1">
+                    💡 Students with 90%+ confidence are auto-marked as present
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">View:</span>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode('cards')}
+                      className={`px-3 py-1 text-xs rounded transition-colors ${
+                        viewMode === 'cards' 
+                          ? 'bg-white text-gray-900 shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Cards
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`px-3 py-1 text-xs rounded transition-colors ${
+                        viewMode === 'list' 
+                          ? 'bg-white text-gray-900 shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      List
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
-                {selectedBatch.students.map((s) => {
-                  const isPresent = presentIds.includes(s.id);
-                  const isAlternativeSession = alternativeSessionIds.includes(s.id);
-                  const isAbsent = !isPresent && !isAlternativeSession;
-                  
-                  return (
-                    <div key={s.id} className={`p-3 rounded-lg border-2 transition-all ${
-                      isPresent 
-                        ? 'bg-green-50 border-green-200 shadow-md' 
-                        : isAlternativeSession
-                        ? 'bg-blue-50 border-blue-200 shadow-md'
-                        : 'bg-gray-50 border-gray-200 hover:shadow-md'
-                    }`}>
-                      <div className="mb-3">
-                        <div className="font-medium text-gray-900 text-sm truncate">{s.name}</div>
-                        <div className="text-xs text-gray-500 truncate">{s.email}</div>
+
+              {viewMode === 'cards' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                  {selectedBatch.students.map((s) => {
+                    const isPresent = presentIds.includes(s.id);
+                    const isAlternativeSession = alternativeSessionIds.includes(s.id);
+                    const isAbsent = !isPresent && !isAlternativeSession;
+                    
+                    return (
+                      <div key={s.id} className={`p-3 rounded-lg border-2 transition-all ${
+                        isPresent 
+                          ? 'bg-green-50 border-green-200 shadow-md' 
+                          : isAlternativeSession
+                          ? 'bg-blue-50 border-blue-200 shadow-md'
+                          : 'bg-gray-50 border-gray-200 hover:shadow-md'
+                      }`}>
+                        <div className="mb-3">
+                          <div className="font-medium text-gray-900 text-sm truncate">{s.name}</div>
+                          <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                        </div>
+                        <div className="mb-2">
+                          {isPresent && (
+                            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                              ✅ Present
+                            </span>
+                          )}
+                          {isAlternativeSession && (
+                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              🔄 Alternative Session
+                            </span>
+                          )}
+                          {isAbsent && (
+                            <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                              ❌ Absent
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <button
+                            onClick={() => toggleStudent(s.id, 'present')}
+                            className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                              isPresent 
+                                ? 'bg-green-500 text-white border-green-500' 
+                                : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
+                            }`}
+                          >
+                            {isPresent ? '✓ Present' : 'Mark Present'}
+                          </button>
+                          <button
+                            onClick={() => toggleStudent(s.id, 'alternative_session')}
+                            className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                              isAlternativeSession 
+                                ? 'bg-blue-500 text-white border-blue-500' 
+                                : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
+                            }`}
+                          >
+                            {isAlternativeSession ? '✓ Alt Session' : 'Alt Session'}
+                          </button>
+                          <button
+                            onClick={() => markAbsent(s.id)}
+                            className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
+                              isAbsent 
+                                ? 'bg-red-500 text-white border-red-500' 
+                                : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                            }`}
+                          >
+                            {isAbsent ? '✓ Absent' : 'Mark Absent'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="mb-2">
-                        {isPresent && (
-                          <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                            ✅ Present
-                          </span>
-                        )}
-                        {isAlternativeSession && (
-                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                            🔄 Alternative Session
-                          </span>
-                        )}
-                        {isAbsent && (
-                          <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                            ❌ Absent
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <button
-                          onClick={() => toggleStudent(s.id, 'present')}
-                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
-                            isPresent 
-                              ? 'bg-green-500 text-white border-green-500' 
-                              : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
-                          }`}
-                        >
-                          {isPresent ? '✓ Present' : 'Mark Present'}
-                        </button>
-                        <button
-                          onClick={() => toggleStudent(s.id, 'alternative_session')}
-                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
-                            isAlternativeSession 
-                              ? 'bg-blue-500 text-white border-blue-500' 
-                              : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
-                          }`}
-                        >
-                          {isAlternativeSession ? '✓ Alt Session' : 'Alt Session'}
-                        </button>
-                        <button
-                          onClick={() => markAbsent(s.id)}
-                          className={`w-full px-2 py-1 text-xs rounded border transition-colors ${
-                            isAbsent 
-                              ? 'bg-red-500 text-white border-red-500' 
-                              : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
-                          }`}
-                        >
-                          {isAbsent ? '✓ Absent' : 'Mark Absent'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto">
+                  <div className="space-y-2">
+                    {selectedBatch.students.map((s) => {
+                      const isPresent = presentIds.includes(s.id);
+                      const isAlternativeSession = alternativeSessionIds.includes(s.id);
+                      const isAbsent = !isPresent && !isAlternativeSession;
+                      
+                      return (
+                        <div key={s.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                          isPresent 
+                            ? 'bg-green-50 border-green-200' 
+                            : isAlternativeSession
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 text-sm truncate">{s.name}</div>
+                            <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              isPresent 
+                                ? 'bg-green-100 text-green-800'
+                                : isAlternativeSession
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {isPresent ? '✅ Present' : isAlternativeSession ? '🔄 Alt Session' : '❌ Absent'}
+                            </span>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => toggleStudent(s.id, 'present')}
+                                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                  isPresent 
+                                    ? 'bg-green-500 text-white border-green-500' 
+                                    : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
+                                }`}
+                              >
+                                P
+                              </button>
+                              <button
+                                onClick={() => toggleStudent(s.id, 'alternative_session')}
+                                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                  isAlternativeSession 
+                                    ? 'bg-blue-500 text-white border-blue-500' 
+                                    : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
+                                }`}
+                              >
+                                A
+                              </button>
+                              <button
+                                onClick={() => markAbsent(s.id)}
+                                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                  isAbsent 
+                                    ? 'bg-red-500 text-white border-red-500' 
+                                    : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                                }`}
+                              >
+                                X
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
